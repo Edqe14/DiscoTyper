@@ -1,0 +1,19 @@
+{
+  "prefix": "?",
+  "uris": {
+    "text": "http://typeracerdata.com/texts?texts=full&sort=relative_average"
+  },
+  "paths": {
+    "text": "texts.json"
+  },
+  "var": {
+    "defWPM": 75,
+    "defCPM": 375,
+    "defCPS": 6.25,
+    "defCP": 8,
+    "defIdle": 60000,
+    "colInfo": "#fafafa",
+    "colSuccess": "#07dc00",
+    "colError": "#dc0000"
+  }
+}
