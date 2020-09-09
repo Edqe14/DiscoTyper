@@ -8,9 +8,9 @@ const Collection = require('@discordjs/collection');
 const bot = new Client({
   disableEveryone: true
 });
-bot.setMaxListeners(10000);
-
 const config = bot.config = require('./config.json');
+bot.setMaxListeners(10000);
+bot.games = new Collection();
 
 const commands = bot.commands = new Collection();
 const cooldowns = bot.cooldowns = new Collection();
@@ -19,6 +19,7 @@ readdir(join(__dirname, 'commands'), (e, f) => {
   const js = f.filter((f) => f.split('.').pop() === 'js');
 
   if (js.length <= 0) return console.log('No commands is available to load...');
+  console.log(`Loading ${js.length} commands...`);
   js.forEach((fi, i) => {
     const c = require(join(__dirname, 'commands', fi));
 

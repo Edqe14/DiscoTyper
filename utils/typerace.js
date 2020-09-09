@@ -15,6 +15,7 @@ module.exports = class TypeRacer {
       const texts = [];
       query.each((_, e) => {
         const str = this.format($(e).html());
+        if (str.length > 1800) return;
         texts.push(str);
       });
 

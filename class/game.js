@@ -1,162 +1,256 @@
 const crypto = require('crypto');
 const fs = require('fs');
-const { TextChannel, MessageEmbed } = require('discord.js');
+const { TextChannel, MessageEmbed, Message, User, GuildMember } = require('discord.js');
+const sleep = require('../utils/sleep.js');
+const pad = require('../utils/pad.js');
+const { EventEmitter } = require('events');
+const { paths: { text: path }, var: { colError, colSuccess, colInfo, colSet, defCPS, defIdle, defCP, defMinPlayer, defStartTime, defDeleteTime } } = require('../config.json');
 
-module.exports = ({ paths: { text: path }, var: { colError, colSuccess, colInfo, defCPS, defIdle, defCP } }) => {
-  if (fs.existsSync(`${__dirname.replace(/\\/gi, '/')}/../${path}`)) return new Error('Invalid text path');
-  const { texts, length } = require(`${__dirname.replace(/\\/gi, '/')}/../${path}`);
+if (!fs.existsSync(`${__dirname.replace(/\\/gi, '/')}/../${path}`)) throw new Error('Invalid text path');
+const { texts, length } = require(`${__dirname.replace(/\\/gi, '/')}/../${path}`);
 
-  return class Game {
-    /**
-     * Create new game
-     * @param {String} code
-     * @param {?Array<String>} players
-     * @param {?Object} ops
-     * @param {TextChannel} channel
-     */
-    constructor (code, players = [], channel, ops = {}) {
-      if (!channel || !(channel instanceof TextChannel)) throw new TypeError('Invalid channel given');
+module.exports = class Game extends EventEmitter {
+  /**
+   * Create new game
+   * @param {String} code
+   * @param {?Array<String>} players
+   * @param {?Object} ops
+   * @param {TextChannel} channel
+   */
+  constructor (code, author, channel, players = [], ops = {}) {
+    super();
+    if (!channel || !(channel instanceof TextChannel)) throw new TypeError('Invalid channel given');
+    if (!author || typeof author !== 'string') throw new TypeError('Invalid author user id');
 
-      this.code = code || this.generateCode();
-      this.players = players || [];
-      this.channel = channel;
-      this.ops = Object.assign({}, ops);
-      this.started = false;
+    this.createdTimestamp = Date.now();
+    this.owner = author;
+    this.code = code || Game.generateCode();
+    this.players = players || [];
+    this.channel = channel;
+    this.guild = this.channel.guild;
+    this.ops = Object.assign({}, ops);
+    this.isStarted = false;
+    this.isFinished = false;
+    this.startTimer = undefined;
 
-      this.text = texts[Math.floor(Math.random() * length)];
-      this.text_len = this.text.length;
-      this.ms_min_done = this.text_len / defCPS * 1000;
+    this.text = texts[Math.floor(Math.random() * length)];
+    this.text_len = this.text.length;
+    this.ms_min_done = this.text_len / defCPS * 1000;
+
+    this.on('start', this.start);
+    this.log(this.channel, `Created a new game!\n\n**Code:** ${this.code}`, true, 1);
+  }
+
+  /**
+   * Generate a random 5 character code
+   */
+  static generateCode () {
+    const str = `discotype-${Date.now()}-${crypto.randomBytes(4).toString('base64')}`;
+
+    return crypto.createHash('md5').update(str).digest('hex').substr(0, 5).toUpperCase();
+  }
+
+  /**
+   * Add a player (user id) to the game
+   * @param {String|GuildMember|User} user
+   */
+  addPlayer (user) {
+    if (this.isStarted) return this.log(this.channel, 'This game is already started', true, 0);
+    if (!user) throw new Error('Invalid user');
+
+    this.players.push({
+      id: typeof user !== 'string' ? user.id : user,
+      timestamp: Date.now()
+    });
+
+    this.log(this.channel, `${this.channel.guild.member(user).toString()} has joined game \`${this.code}\``);
+    if (this.players.length >= defMinPlayer && typeof this.startTimer === 'undefined') this.startCountDown();
+  }
+
+  /**
+   * Remove a player (user id) to the game
+   * @param {String|GuildMember|User} user
+   */
+  removePlayer (user) {
+    if (this.started) return this.log(this.channel, 'This game is already started');
+    if (!user) throw new Error('Invalid user');
+    if (!this.players.some(u => u.id === (typeof user !== 'string' ? user.id : user))) throw new Error('This user is not in this game');
+
+    const lenBef = this.players.length;
+    this.players.splice(this.players.findIndex(u => u.id === (typeof user !== 'string' ? user.id : user)), 1);
+
+    this.log(this.channel, `${this.channel.guild.member(user).toString()} has left game \`${this.code}\``);
+    if (this.players.length < defMinPlayer && lenBef >= defMinPlayer && typeof this.startTimer !== 'undefined') this.stopCountDown();
+  }
+
+  /**
+   * Start automatic start countdown
+   */
+  startCountDown () {
+    this.startTimer = setTimeout(() => this.emit('start'), defStartTime);
+    this.log(this.channel, `Game will start in ${defStartTime / 1000} seconds`);
+  }
+
+  /**
+   * Stop automatic start countdown
+   */
+  stopCountDown () {
+    clearTimeout(this.startTimer);
+    this.log(this.channel, 'Timer has been stopped');
+  }
+
+  /**
+   * Start the game
+   */
+  async start () {
+    if (this.players.length < defStartTime) {
+      this.stopCountDown();
+      return this.log(this.channel, 'Not enough player to start. Waiting for user to join...', true, 0);
     }
+    this.isStarted = true;
 
-    /**
-     * Generate a random 5 character code
-     */
-    static generateCode () {
-      const str = `discotype-${Date.now()}-${crypto.randomBytes(4).toString('base64')}`;
+    const msg = await this.log(this.channel, true, 'Ready?!', colError);
+    await sleep(2500);
+    this.log(msg, null, true, 'Get Set!', colSet);
+    await sleep(2500);
+    this.log(msg, `Type this text:\n\`\`\`${this.text}\`\`\``, true, 'Go!', colSuccess);
 
-      return crypto.createHash('md5').update(str).digest('hex').substr(0, 5);
+    this.finished = [];
+    this.collector = this.channel.createMessageCollector(m => this.players.some(u => u.id === m.author.id) && m.author.typingDurationIn(this.channel) >= this.ms_min_done, {
+      idle: defIdle
+    });
+    this.start_time = Date.now();
+
+    this.collector.on('collect', async m => {
+      m.delete();
+      if (this.finished.some(u => u.id === m.author.id)) return this.log(this.channel, 'You already finish this sentence!', false, 2, null, defDeleteTime);
+      if (!this.sanitize(m)) return this.log(this.channel, `Hey ${m.member.toString()}, it seems you didn't type this properly! Please try again.`, false, 2, null, defDeleteTime);
+
+      const finish = m.createdTimestamp;
+      const errors = Game.compare(this.text, m.content);
+      const acc = (this.text_len - errors) / this.text_len * 100;
+      const duration = finish - this.start_time;
+      const wpm = this.text_len / duration * 60 / 5;
+
+      const prep = {
+        username: m.author.username,
+        id: m.author.id,
+        errors,
+        acc,
+        wpm,
+        duration,
+        timestamp: finish
+      };
+      this.finished.push(prep);
+
+      this.log(m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${Math.round(wpm)}\n> Time taken: ${duration / 1000} seconds\`\`\``, true);
+      if (this.finished.length >= this.players.length) this.collector.stop('done');
+    });
+
+    this.collector.on('end', async () => {
+      msg.delete();
+
+      this.finish();
+    });
+  }
+
+  finish () {
+    this.isFinished = true;
+    this.finished.sort((a, b) => a.wpm - b.wpm);
+
+    this.top3 = this.finished.slice(0, 3);
+    let prep = '';
+    this.top3.forEach((t, i) => {
+      prep += `#${pad(i + 1)}. ${t.username} with ${Math.round(t.wpm)} WPM\n`;
+    });
+
+    this.log(`**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, 'This game is ended, please make or join another game to play again!');
+  }
+
+  /**
+   * Compare 2 strings
+   * @param {String} a
+   * @param {String} b
+   */
+  static compare (a, b) {
+    let errors = 0;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) errors++;
     }
+    return errors;
+  }
 
-    /**
-     * Add a player (user id) to the game
-     * @param {String} id
-     */
-    addPlayer (id) {
-      if (this.started) return this.log('This game is already started', true, 0);
-      if (!id || id.length !== 18) throw new Error('Invalid id');
-
-      return this.players.push(id);
-    }
-
-    /**
-     * Remove a player (user id) to the game
-     * @param {String} id
-     */
-    removePlayer (id) {
-      if (this.started) return this.log('This game is already started');
-      if (!id || id.length !== 18) throw new Error('Invalid id');
-      if (!this.players.includes(id)) throw new Error('This id is not in this game');
-
-      return this.players.splice(this.players.indexOf(id), 1);
-    }
-
-    /**
-     * Start the game
-     */
-    async start () {
-      if (this.players.length <= 1) return this.log('Not enough player to start', true, 0);
-      this.started = true;
-
-      await this.log(`Type this text below and send it as soon as you can!\n\n\`\`\`${this.text}\`\`\``, true);
-
-      this.finished = [];
-      this.collector = this.channel.createMessageCollector(m => this.players.includes(m.author.id) && m.author.typingDurationIn(this.channel) >= this.ms_min_done, {
-        idle: defIdle
-      });
-      this.start_time = Date.now();
-
-      this.collector.on('collect', m => {
-        m.delete({ timeout: 20 });
-        if (this.finished.some(u => u.id === m.author.id)) return this.log('You already finish this sentence!');
-        if (!this.sanitize(m)) return this.log(`Hey ${m.member.toString()}, it seems you didn't type this properly! Please try again.`);
-
-        const finish = Date.now();
-        const errors = this.compare(this.text, m.content);
-        const acc = (this.text_len - errors) / this.text_len * 100;
-
-        const prep = {
-          id: m.author.id,
-          errors,
-          acc,
-          duration: finish - this.start_time
-        };
-        this.finished.push(prep);
-
-        this.log(m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> Time taken: ${prep.duration / 1000} seconds\`\`\``, true);
-      });
-    }
-
-    /**
-     * Compare 2 strings
-     * @param {String} a
-     * @param {String} b
-     */
-    compare (a, b) {
-      let errors = 0;
-      for (let i = 0; i < a.length; i++) {
-        if (a[i] !== b[i]) errors++;
+  /**
+   * Log a message to a game channel
+   * @param {TextChannel|Message|User|GuildMember} channel
+   * @param {*} message
+   * @param {?Boolean} embed
+   * @param {?Number} type
+   * @param {?ColorResolvable} color
+   * @param {*} footer
+   */
+  async log (t = this.channel, message, embed = false, type = 2, color = 'RANDOM', del, footer) {
+    if (!(t instanceof TextChannel) && !(t instanceof Message) && !(t instanceof User) && !(t instanceof GuildMember)) Array.prototype.unshift.call(arguments, this.channel);
+    if (message.length === 0) return;
+    if (!embed) {
+      if (!(t instanceof TextChannel) && t instanceof Message) {
+        if (!del) return t.edit(message);
+        return t.delete({ timeout: del });
       }
-      return errors;
+      if (!del) return await t.send(message);
+      return t.send(message).then(m => m.delete({ timeout: del }));
     }
 
-    /**
-     * Log a message to a game channel
-     * @param {*} message
-     * @param {?Boolean} embed
-     * @param {?Number} type
-     * @param {?ColorResolvable} color
-     */
-    async log (channel = this.channel, message, embed = false, type = 2, color = 'RANDOM') {
-      if (message.length === 0) return;
-      if (!embed) return channel.send(message);
+    const mbed = new MessageEmbed();
+    switch (type) {
+      case 0:
+        mbed.setTitle('Error')
+          .setColor(colError)
+          .setDescription(message)
+          .setFooter(footer)
+          .setTimestamp();
+        break;
 
-      const mbed = new MessageEmbed();
-      switch (type) {
-        case 0:
-          mbed.setTitle('Error')
-            .setColor(colError)
-            .setDescription(message)
-            .setTimestamp();
-          break;
+      case 1:
+        mbed.setTitle('Success')
+          .setColor(colSuccess)
+          .setDescription(message)
+          .setFooter(footer)
+          .setTimestamp();
+        break;
 
-        case 1:
-          mbed.setTitle('Success')
-            .setColor(colSuccess)
-            .setDescription(message)
-            .setTimestamp();
-          break;
+      case 2:
+        mbed.setTitle('Info')
+          .setColor(colInfo)
+          .setDescription(message)
+          .setFooter(footer)
+          .setTimestamp();
+        break;
 
-        case 2:
-          mbed.setTitle('Info')
-            .setColor(colInfo)
-            .setDescription(message)
-            .setTimestamp();
-          break;
-
-        default:
-          mbed.setColor(color);
-          break;
-      }
-
-      return await channel.send(mbed);
+      default:
+        mbed.setTitle(type)
+          .setColor(color)
+          .setDescription(message)
+          .setFooter(footer)
+          .setTimestamp();
+        break;
     }
 
-    /**
-     * Check user legitimacy
-     * @param {Message} m
-     */
-    sanitize (m) {
-      return (m.author.typingDurationIn(this.channel) >= this.ms_min_done && Date.now() - this.start_time > defCP);
+    if (!message) mbed.description = undefined;
+    if (!footer) mbed.footer = undefined;
+    if (!(t instanceof TextChannel) && t instanceof Message) {
+      if (!del) return t.edit(mbed);
+      return t.delete({ timeout: del });
     }
-  };
+    if (!del) return await t.send(mbed);
+    return t.send(message).then(m => m.delete({ timeout: del }));
+  }
+
+  /**
+   * Check user legitimacy
+   * @param {Message} m
+   */
+  sanitize (m) {
+    return (m.author.typingDurationIn(this.channel) >= this.ms_min_done && Date.now() - this.start_time > defCP);
+  }
 };
