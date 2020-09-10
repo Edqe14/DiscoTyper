@@ -3,7 +3,7 @@ const verify = require('../utils/verify.js');
 module.exports = exports = {
   name: 'leave',
   description: 'Leave a game',
-  cooldown: 10,
+  cooldown: 5,
   permissions: null,
   aliases: ['close'],
   usage: '',
@@ -11,7 +11,7 @@ module.exports = exports = {
   async run (bot, message, args, config) {
     const code = args[0];
     if (!code) {
-      const filter = bot.games.filter(g => g.channel.id === message.channel.id && g.players.some(u => u.id === message.author.id)).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+      const filter = bot.games.filter(g => g.channel.id === message.channel.id && g.players.some(u => u.id === message.author.id)).sort((a, b) => a.createdDate.getTime() - b.createdDate.getTime());
       if (filter.size <= 0) return message.reply('There is no games running in this channel! Try to use the game code to leave the specified game');
 
       const game = filter.first();
@@ -44,6 +44,6 @@ module.exports = exports = {
       await msg.reactions.removeAll();
       return await msg.edit('Cancelled');
     }
-    game.removePlayer(message.author.id);
+    game.removePlayer(message.author);
   }
 };
