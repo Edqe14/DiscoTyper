@@ -15,7 +15,6 @@
     "defMinPlayer": 3,
     "defStartTime": 15000,
     "defDeleteTime": 30000,
-    "defPlayerLimit": 5,
     "colInfo": "#fafafa",
     "colSuccess": "#07dc00",
     "colError": "#dc0000",

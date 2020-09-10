@@ -17,6 +17,6 @@ module.exports = exports = {
     const game = bot.games.get(code);
     if (!game) return message.reply('Invalid game');
     if (game.players.some(p => p.id === message.author.id)) return message.reply('You already joined this game!');
-    game.addPlayer(message.author);
+    game.addPlayer(message.author.id);
   }
 };

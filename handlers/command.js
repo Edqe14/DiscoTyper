@@ -12,6 +12,7 @@ module.exports = (bot, config, cooldowns) => {
     const c = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
     if (!c) return;
 
+    message.delete({ timeout: 5000 });
     if (c.permissions && message.channel.type !== 'dm') {
       const perms = new Permissions(c.permissions);
       if (!message.member.hasPermission(perms)) {
@@ -50,14 +51,7 @@ module.exports = (bot, config, cooldowns) => {
       }
     }
 
-    if (c) {
-      c.run(bot, message, args, config).catch(e => {
-        if (e) {
-          console.error(e);
-          bot.logger.error(`Error in running ${c.name} command`, e, e.stack);
-        }
-      });
-    }
+    if (c) c.run(bot, message, args, config);
 
     timestamps.set(message.author.id, now);
     setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);

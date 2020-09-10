@@ -1,5 +1,5 @@
 module.exports = (bot) => {
   bot.on('ready', () => {
-    bot.logger.info('Bot ready');
+    console.log('Bot ready');
   });
 };
