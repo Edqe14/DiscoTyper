@@ -27,7 +27,7 @@ module.exports = exports = {
         return await msg.edit('Cancelled');
       }
       if (!game.players.some(u => u.id === message.author.id)) return message.reply('Something went wrong. Please try again.');
-      return game.removePlayer(message.author.id);
+      return game.removePlayer(message.author);
     }
 
     const game = bot.games.get(code);
@@ -44,6 +44,6 @@ module.exports = exports = {
       await msg.reactions.removeAll();
       return await msg.edit('Cancelled');
     }
-    game.removePlayer(message.author.id);
+    game.removePlayer(message.author);
   }
 };

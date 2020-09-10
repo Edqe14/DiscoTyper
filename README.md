@@ -2,7 +2,7 @@
  Typeracer on Discord built on Node
 
 TODO:
-finish "finish" function
+tweak anti cheat system
 finish game.js
 make a new game command
 test everything out

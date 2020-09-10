@@ -10,7 +10,10 @@ const bot = new Client({
 });
 const config = bot.config = require('./config.json');
 bot.setMaxListeners(10000);
+bot.config = config;
 bot.games = new Collection();
+
+module.exports = bot;
 
 const commands = bot.commands = new Collection();
 const cooldowns = bot.cooldowns = new Collection();

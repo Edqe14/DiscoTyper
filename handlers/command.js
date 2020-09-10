@@ -11,8 +11,6 @@ module.exports = (bot, config, cooldowns) => {
 
     const c = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
     if (!c) return;
-
-    message.delete({ timeout: 5000 });
     if (c.permissions && message.channel.type !== 'dm') {
       const perms = new Permissions(c.permissions);
       if (!message.member.hasPermission(perms)) {
