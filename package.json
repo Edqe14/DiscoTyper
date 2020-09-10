@@ -1,10 +1,12 @@
 {
-  "name": "bot-template",
+  "name": "discotyper",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node .",
+    "startDev": "nodemon ."
   },
   "repository": {
     "type": "git",
@@ -25,6 +27,10 @@
     "axios": "^0.20.0",
     "cheerio": "^1.0.0-rc.3",
     "discord.js": "^12.3.1",
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "pino": "^6.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
   }
 }
