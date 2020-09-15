@@ -3,8 +3,30 @@ const fs = require('fs');
 const { TextChannel, MessageEmbed, Message, User, GuildMember } = require('discord.js');
 const sleep = require('../utils/sleep.js');
 const pad = require('../utils/pad.js');
+const verify = require('../utils/verify.js');
+const GameHistory = require('../models/gameHistory.js');
 const { EventEmitter } = require('events');
-const { paths: { text: path }, var: { colError, colSuccess, colInfo, colSet, defCPS, defIdle, defMinFinishTime, defMinPlayer, defStartTime, defDeleteTime, defPlayerLimit } } = require('../config.json');
+const {
+  paths: {
+    text: path
+  }, var: {
+    colError,
+    colSuccess,
+    colInfo,
+    colSet,
+    defCPS,
+    defMinCPS,
+    defMaxWPM,
+    defIdle,
+    defMinFinishTime,
+    defMinPlayer,
+    defStartTime,
+    defDeleteTime,
+    defPlayerLimit,
+    defStartTimeReminder,
+    defEstimateAverage
+  }
+} = require('../config.json');
 
 if (!fs.existsSync(`${__dirname.replace(/\\/gi, '/')}/../${path}`)) throw new Error('Invalid text path');
 const { texts, length } = require(`${__dirname.replace(/\\/gi, '/')}/../${path}`);
@@ -12,8 +34,8 @@ const { texts, length } = require(`${__dirname.replace(/\\/gi, '/')}/../${path}`
 module.exports = class Game extends EventEmitter {
   /**
    * Create new game
-   * @param {String} code
-   * @param {?Array<String>} players
+   * @param {?String} code
+   * @param {?Array<Object>} players
    * @param {?Object} ops
    * @param {TextChannel} channel
    */
@@ -28,7 +50,7 @@ module.exports = class Game extends EventEmitter {
     this.limit = defPlayerLimit;
     this.players = players || [];
     this.channel = channel;
-    this.guild = this.channel.guild;
+    this.guild = this.channel.guild.id;
     this.ops = Object.assign({}, ops);
     this.isStarted = false;
     this.isFinished = false;
@@ -36,10 +58,10 @@ module.exports = class Game extends EventEmitter {
 
     this.text = texts[Math.floor(Math.random() * length)];
     this.text_len = this.text.length;
-    this.ms_min_done = this.text_len / defCPS * 1000;
+    this.ms_min_done = this.text_len / defCPS * 1000 - Math.floor(Math.random() * 500);
+    this.ms_max_done = this.text_len / defMinCPS * 1000 - Math.floor(Math.random() * 500);
 
-    this.on('game:start', this.start);
-    this.log(this.channel, `Created a new game!\n\n**Code:** ${this.code}`, true, 1);
+    Game.log(this.code, this.channel, `Created a new game!\n\n**Code:** ${this.code}`, true, 1, null, null, `Type "${this.ops.prefix}join ${this.code}" to join the game!`);
   }
 
   /**
@@ -55,18 +77,18 @@ module.exports = class Game extends EventEmitter {
    * Add a player (user id) to the game
    * @param {GuildMember|User} user
    */
-  addPlayer (user) {
-    if (this.isStarted) return this.log(this.channel, 'This game is already started', true, 0);
+  addPlayer (user, ws) {
+    if (this.isStarted) return Game.log(this.code, this.channel, 'This game is already started', true, 0);
     if (!user) throw new Error('Invalid user');
 
-    if (this.players.length >= this.limit) return this.log(this.channel, 'This game is already full', true, 0);
+    if (this.players.length >= this.limit) return Game.log(this.code, this.channel, 'This game is already full', true, 0);
     this.players.push({
       id: user.id,
       user,
       timestamp: Date.now()
     });
 
-    this.log(this.channel, `${user.toString()} has joined game \`${this.code}\``);
+    Game.log(this.code, this.channel, `${user.toString()} has joined game`);
     this.emit('player:join', user);
     if (this.players.length >= defMinPlayer && typeof this.startTimer === 'undefined') this.startCountDown();
   }
@@ -76,14 +98,14 @@ module.exports = class Game extends EventEmitter {
    * @param {GuildMember|User} user
    */
   removePlayer (user) {
-    if (this.started) return this.log(this.channel, 'This game is already started');
+    if (this.started) return Game.log(this.code, this.channel, 'This game is already started');
     if (!user) throw new Error('Invalid user');
     if (!this.players.some(u => u.id === (typeof user !== 'string' ? user.id : user))) throw new Error('This user is not in this game');
 
     const lenBef = this.players.length;
     this.players.splice(this.players.findIndex(u => u.id === user.id), 1);
 
-    this.log(this.channel, `${user.toString()} has left game \`${this.code}\``);
+    Game.log(this.code, this.channel, `${user.toString()} has left game`);
     this.emit('player:leave', user);
     if (this.players.length < defMinPlayer && lenBef >= defMinPlayer && typeof this.startTimer !== 'undefined') this.stopCountDown(true);
   }
@@ -91,54 +113,67 @@ module.exports = class Game extends EventEmitter {
   /**
    * Start automatic start countdown
    */
-  startCountDown () {
-    this.startTimer = setTimeout(() => this.emit('game:start', this.code), defStartTime);
-    this.log(this.channel, `Game will start in ${defStartTime / 1000} seconds`);
+  async startCountDown () {
+    const m = await Game.log(this.code, this.channel, `Game will start in ${defStartTime / 1000} seconds`, false, 2);
+    this.startTimer = setTimeout(() => {
+      this.startTimer = setTimeout(() => this.start(), defStartTimeReminder - 3000);
+      Game.log(this.code, m, `Game will start in ${defStartTimeReminder / 1000} seconds`, false, 2, null, defStartTimeReminder - 3500);
+    }, defStartTime - defStartTimeReminder);
   }
 
   /**
    * Stop automatic start countdown
+   * @param {?Boolean} [auto=false]
    */
   stopCountDown (auto = false) {
     clearTimeout(this.startTimer);
-    if (auto) this.log(this.channel, 'Timer has been stopped');
+    this.startTimer = null;
+    if (auto) Game.log(this.code, this.channel, 'Timer has been stopped');
   }
 
   /**
    * Start the game
+   * @param {?Boolean} [force=false]
    */
-  async start () {
-    if (this.players.length < defMinPlayer) {
-      this.stopCountDown();
-      return this.log(this.channel, 'Not enough player to start. Waiting for user to join...', true, 0);
+  async start (force = false) {
+    this.stopCountDown();
+    if (this.isStarted) throw new Error('This game is already started');
+    if (this.players.length < defMinPlayer && !force) return Game.log(this.code, this.channel, 'Not enough player to start. Waiting for user to join...', true, 0);
+    if (this.players.length === 1 && force) {
+      const m = await Game.log(this.code, this.channel, 'There is only one player in this game, do you want to proceed?');
+      const ver = await verify(this.owner, m);
+      m.delete();
+      if (!ver) return Game.log(this.code, this.channel, 'Cancelled');
     }
     this.isStarted = true;
+    this.emit('game:start', this.code);
 
-    const msg = await this.log(this.channel, null, true, 'Ready?!', colError);
-    await sleep(1500);
-    await this.log(msg, null, true, 'Get Set!', colSet);
-    await sleep(1500);
-    await this.log(msg, `Type this text:\n\`\`\`${this.text}\`\`\``, true, 'Go!', colSuccess);
+    const msg = await Game.log(this.code, this.channel, null, true, 'Ready?!', colError);
+    await sleep(1000);
+    await Game.log(this.code, msg, null, true, 'Get Set!', colSet);
+    await sleep(1000);
+    await Game.log(this.code, msg, `Type this text:\n\`\`\`${this.text}\`\`\``, true, 'Go!', colSuccess);
 
     this.finished = [];
     this.collector = this.channel.createMessageCollector(m => this.players.some(u => u.id === m.author.id) && !this.finished.some(u => u.id === m.author.id), {
-      idle: defIdle
+      time: defIdle + this.ms_max_done
     });
     this.start_time = Date.now();
 
     this.collector.on('collect', async m => {
-      if (this.finished.some(u => u.id === m.author.id)) return this.log(this.channel, 'You already finish this sentence!', false, 2, null, defDeleteTime);
+      if (this.finished.some(u => u.id === m.author.id)) return Game.log(this.code, this.channel, 'You already finish this sentence!', false, 2, null, defDeleteTime);
       const finish = m.createdTimestamp;
-      if (!this.sanitize(m, finish)) {
+      const duration = finish - (m.author.typingSinceIn(this.channel) || { getTime: () => this.start_time }).getTime();
+      const wpm = this.text_len / (duration / 1000) * 60 / 5;
+      const legit = this.sanitize(m, finish, wpm);
+      if (!legit) {
         await m.delete();
-        return this.log(this.channel, `Hey ${m.member.toString()}, it seems you didn't type this properly! Please try again.`, false, 2, null, defDeleteTime);
+        return Game.log(this.code, this.channel, `Hey ${m.member.toString()}, it seems you didn't type it legitimately! Please try again.`, false, 2, null, defDeleteTime);
       }
 
       await m.react('✅');
       const errors = Game.compare(this.text, m.content);
       const acc = (this.text_len - errors) / this.text_len * 100;
-      const duration = finish - this.start_time;
-      const wpm = this.text_len / (duration / 1000) * 60 / 5;
 
       const prep = {
         username: m.author.username,
@@ -147,38 +182,43 @@ module.exports = class Game extends EventEmitter {
         acc,
         wpm,
         duration,
-        timestamp: finish
+        timestamp: finish,
+        antiCheatData: legit
       };
       this.finished.push(prep);
 
-      this.log(m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${Math.round(wpm)}\n> Time taken: ${duration / 1000} seconds\`\`\``, true);
+      Game.log(this.code, m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${wpm.toFixed(2)}\n> Time taken: ${duration / 1000} seconds\`\`\``, true);
       if (this.finished.length >= this.players.length) this.collector.stop('done');
     });
 
     this.collector.on('end', async () => {
-      msg.delete();
-
-      this.finish();
+      this.finish(msg);
     });
   }
 
-  finish () {
+  /**
+   * Finish the game
+   * @param {Message} msg
+   */
+  finish (msg) {
     this.isFinished = true;
     this.emit('game.end', this.code);
-    this.finished.sort((a, b) => a.wpm - b.wpm);
 
     this.top3 = this.finished.slice(0, 3);
     let prep = '';
     this.top3.forEach((t, i) => {
-      prep += `#${pad(i + 1)}. ${t.username} with ${Math.round(t.wpm)} WPM\n`;
+      prep += `#${pad(i + 1)}. ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
     });
 
     const noFin = this.players.filter(u => !this.finished.some(f => f.id === u.id));
     noFin.forEach(u => {
-      this.log(u.user, 'You didn\'t finish the text on time', true);
+      Game.log(this.code, u.user, 'You didn\'t finish the text on time', true);
     });
 
-    this.log(this.channel, `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, 'This game is ended, please make or join another game to play again!');
+    if (this.top3.length === 0 || this.finished.length <= 0) return Game.log(this.code, (msg || this.channel), 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+    Game.log(this.code, (msg || this.channel), `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+
+    this.ops.gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
   }
 
   /**
@@ -203,9 +243,10 @@ module.exports = class Game extends EventEmitter {
    * @param {?ColorResolvable} color
    * @param {*} footer
    */
-  async log (t = this.channel, message, embed = false, type = 2, color = 'RANDOM', del, footer) {
+  static async log (code, t, message, embed = false, type = 2, color = 'RANDOM', del, footer) {
     if (!(t instanceof TextChannel) && !(t instanceof Message) && !(t instanceof User) && !(t instanceof GuildMember)) Array.prototype.unshift.call(arguments, this.channel);
     if (!embed) {
+      message = (`\`[${code}]\` ${message}`).trim();
       if (!(t instanceof TextChannel) && t instanceof Message) {
         if (!del) return t.edit(message);
         return t.delete({ timeout: del });
@@ -214,6 +255,7 @@ module.exports = class Game extends EventEmitter {
       return t.send(message).then(m => m.delete({ timeout: del }));
     }
 
+    footer = (`[${code}] ${footer || ''}`).trim();
     const mbed = new MessageEmbed();
     switch (type) {
       case 0:
@@ -262,10 +304,20 @@ module.exports = class Game extends EventEmitter {
   /**
    * Check user legitimacy
    * @param {Message} m
+   * @param {Number} ms
+   * @param {Number} wpm
    */
-  sanitize (m, ms) {
-    console.log(m.author.typingDurationIn(this.channel), this.ms_min_done, m.author.typingDurationIn(this.channel) >= this.ms_min_done)
-    console.log(ms - this.start_time, defMinFinishTime, ms - this.start_time > defMinFinishTime)
-    return (m.author.typingDurationIn(this.channel) >= this.ms_min_done && ms - this.start_time > defMinFinishTime);
+  sanitize (m, ms, wpm) {
+    const estDur = this.text_len / (wpm * 5 / 60) * 1000 - Math.floor(Math.random() * 500);
+    const durStartFin = ms - this.start_time;
+    const typingDur = ms - (m.author.typingSinceIn(this.channel) ? m.author.typingSinceIn(this.channel).getTime() : ms - m.author.typingDurationIn(this.channel));
+    // console.log(wpm, estDur, ms - typingDur, this.ms_min_done, typingDur)
+    // console.log(ms - this.start_time >= this.ms_min_done, ms - this.start_time > defMinFinishTime, Math.abs(typingDur - estDur) < defEstimateAverage)
+    return (wpm < defMaxWPM && typingDur >= this.ms_min_done && durStartFin > defMinFinishTime && Math.abs(typingDur - estDur) < defEstimateAverage) ? {
+      typingDuration: typingDur,
+      durationStartFinish: durStartFin,
+      estimatedDuration: estDur,
+      minRangeTyping: Math.abs(typingDur - estDur)
+    } : false;
   }
 };

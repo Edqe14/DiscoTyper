@@ -6,13 +6,14 @@ module.exports = exports = {
   cooldown: 10,
   permissions: null,
   aliases: ['close'],
-  usage: '',
+  args: false,
+  usage: '[code]',
   category: 'game',
   async run (bot, message, args, config) {
     const code = args[0];
     if (!code) {
       const filter = bot.games.filter(g => g.channel.id === message.channel.id && g.players.some(u => u.id === message.author.id)).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-      if (filter.size <= 0) return message.reply('There is no games running in this channel! Try to use the game code to leave the specified game');
+      if (filter.size <= 0) return message.reply('You\'re not in any game room');
 
       const game = filter.first();
       if (game.owner === message.author.id) {

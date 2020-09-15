@@ -14,7 +14,9 @@ module.exports = class TypeRacer {
       const query = $('table tbody tr td a[href*="/text?"]');
       const texts = [];
       query.each((_, e) => {
-        const str = this.format($(e).html());
+        let str = $(e).html();
+        if (!str) return;
+        str = this.format(str);
         if (str.length > 1800) return;
         texts.push(str);
       });
@@ -35,6 +37,7 @@ module.exports = class TypeRacer {
     txt = txt.replace(/<i>|<\/i>/gi, '*');
     txt = txt.replace(/&amp; /gi, '');
     txt = txt.replace(/&apos;/gi, '\'');
+    txt = txt.replace(/&quot;/gi, '"');
 
     return txt;
   }

@@ -10,15 +10,30 @@
     "defWPM": 75,
     "defCPM": 375,
     "defCPS": 6.25,
+    "defMinCPS": 2.92,
+    "defMaxWPM": 265,
     "defMinFinishTime": 8000,
     "defIdle": 90000,
     "defMinPlayer": 2,
     "defStartTime": 15000,
-    "defDeleteTime": 30000,
+    "defStartTimeReminder": 10000,
+    "defEstimateAverage": 800,
+    "defDeleteTime": 5000,
+    "defPlayerLimit": 8,
     "defLimit": 5,
+    "defInvitePerms": ["SEND_MESSAGES", "VIEW_CHANNEL", "MANAGE_MESSAGES", "USE_EXTERNAL_EMOJIS", "ADD_REACTIONS", "EMBED_LINKS", "READ_MESSAGE_HISTORY"],
     "colInfo": "#fafafa",
     "colSuccess": "#07dc00",
     "colError": "#dc0000",
-    "colSet": "#edc309"
+    "colSet": "#edc309",
+    "colDefEmbed": [
+      "#75cde3",
+      "#bb83e3",
+      "#82bfab",
+      "#99a7e3"
+    ]
+  },
+  "game": {
+    "maxGame": 50
   }
 }

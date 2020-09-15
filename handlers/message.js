@@ -1,13 +1,28 @@
 const { Permissions } = require('discord.js');
 const Collection = require('@discordjs/collection');
+const GuildConfig = require('../models/guildConfig.js');
 
 module.exports = (bot, config, cooldowns) => {
+  const guildConfig = bot.db.get('guilds');
+  const gameHistory = bot.db.get('games');
+
   bot.on('message', async message => {
     if (message.author === bot.user) return;
+
+    let settings = await guildConfig.findOne({ id: message.guild.id });
+    if (!settings) {
+      settings = new GuildConfig(message.guild, config);
+      await guildConfig.insert(settings);
+    }
+    config = Object.assign(config, settings);
+
+    if (message.content === `<@!${bot.user.id}>`) return message.channel.send(`Hello ${message.author.toString()}! My prefix for this guild is \`${config.prefix}\``);
 
     const prefix = config.prefix;
     const args = message.content.slice(prefix.length).split(' ');
     const cmd = args.shift().toLowerCase();
+
+    if (!message.content.startsWith(prefix)) return;
 
     const c = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
     if (!c) return;
@@ -20,8 +35,7 @@ module.exports = (bot, config, cooldowns) => {
       }
     }
 
-    if (c.guildOnly && message.channel.type !== 'text') { return message.reply("I can't execute that command inside a dm!"); }
-
+    if (message.channel.type !== 'text') { return message.reply("I can't execute that command inside a dm!"); }
     if (c.args && !args.length) {
       let reply = `You didn't provide any arguments, ${message.author}!`;
 
@@ -31,7 +45,6 @@ module.exports = (bot, config, cooldowns) => {
 
       return message.channel.send(reply);
     }
-
     if (!cooldowns.has(c.name)) cooldowns.set(c.name, new Collection());
 
     const now = Date.now();
@@ -49,7 +62,12 @@ module.exports = (bot, config, cooldowns) => {
       }
     }
 
-    if (c) c.run(bot, message, args, config);
+    if (c) {
+      c.run(bot, message, args, config, {
+        guildConfig,
+        gameHistory
+      });
+    }
 
     timestamps.set(message.author.id, now);
     setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);

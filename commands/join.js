@@ -4,10 +4,11 @@ module.exports = exports = {
   cooldown: 5,
   permissions: null,
   aliases: [],
-  usage: '',
+  args: true,
+  usage: '<code>',
   category: 'game',
   async run (bot, message, args, config) {
-    const code = args[0];
+    const code = (args[0] || '').toUpperCase();
     if (!code) return message.reply('Please provide a valid game code!');
     if (!bot.games.has(code)) return message.reply(`Invalid game with code: ${code}!`);
 
