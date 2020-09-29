@@ -18,15 +18,15 @@ module.exports = exports = {
       .setColor(col)
       .setTitle('Invite Me!')
       .setDescription(
-        `[Click here](${link}) to invite me to your server(s)! 
-        \`You need 'Manage Server' or greater permission to invite me\`
-        
-        These permissions will be **granted** on inviting me:
-        \`\`\`${perm.toArray().join('\n')}\`\`\`
-        *PS: Permissions written above could be shown differently on Discord when inviting me*
-        
-        Thank you to everyone for inviting me to their server(s)!`)
-      .setTimestamp();
+        `[Click here](${link}) to invite me to your server(s)!
+\`You need 'Manage Server' or greater permission to invite me\`
+
+These permissions will be **granted** on inviting me:
+\`\`\`${perm.toArray().join('\n')}\`\`\`
+*PS: Permissions written above could be shown differently on Discord when inviting me*
+
+Thank you to everyone for inviting me to their server(s)!`
+      ).setTimestamp();
 
     message.channel.send(embed);
   }

@@ -86,7 +86,7 @@
     });
   });
 
-  bot.login(process.env.TOKEN)
+  bot.login(process.env.NODE_ENV === 'development' ? process.env.DEV_TOKEN : process.env.TOKEN)
     .catch(console.error)
     .then(() => console.log(`Logged in as ${bot.user.username}#${bot.user.discriminator}`));
 })().catch(console.error);

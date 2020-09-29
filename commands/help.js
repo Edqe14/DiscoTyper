@@ -21,18 +21,18 @@ module.exports = exports = {
       const perm = new Permissions(command.permissions || []).toArray();
       embed.setDescription(
         `**${command.name}**
-        ${command.description}
+${command.description}
         
-        **Category**: ${command.category[0].toUpperCase() + command.category.substring(1)}
-        **Aliases**: 
-        ${command.aliases.length === 0 ? 'None' : `\`${command.aliases.join(', ')}\``}
+**Category**: ${command.category[0].toUpperCase() + command.category.substring(1)}
+**Aliases**: 
+${command.aliases.length === 0 ? 'None' : `\`${command.aliases.join(', ')}\``}
         
-        **Usage**: 
-        \`${(`${config.prefix + command.name} ${command.usage}`).trim()}\`
+**Usage**: 
+\`${(`${config.prefix + command.name} ${command.usage}`).trim()}\`
         
-        **Permission Required**:
-        ${perm.length === 0 ? 'None' : `\`\`\`${perm.map((a, i) => i % 2 === 1 ? `**${a}**` : a).join('\n')}\`\`\``}`)
-        .setTimestamp();
+**Permission Required**:
+${perm.length === 0 ? 'None' : `\`\`\`${perm.map((a, i) => i % 2 === 1 ? `**${a}**` : a).join('\n')}\`\`\``}`
+        ).setTimestamp();
         
       return message.channel.send(embed);
     }
@@ -48,10 +48,8 @@ module.exports = exports = {
 
     
     embed.setDescription(
-        `My prefix here is \`${config.prefix}\`
-        
-        ${Object.keys(category).map(c => `**${c}**\n${category[c].map(m => `\`${m.name}\` **-** ${m.description}`).join('\n')}`).join('\n\n')}`)
-      .setTimestamp();
+        `My prefix here is \`${config.prefix}\`\n\n${Object.keys(category).map(c => `**${c}**\n${category[c].map(m => `\`${m.name}\` **-** ${m.description}`).join('\n')}`).join('\n\n')}`
+      ).setTimestamp();
 
     message.channel.send(embed);
   }
