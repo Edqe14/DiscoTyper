@@ -1,14 +1,16 @@
 {
-  "name": "bot-template",
+  "name": "discotyper",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node .",
+    "dev": "nodemon ."
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Edqe14/Bot-Template.git"
+    "url": "git+https://github.com/Edqe14/DiscoTyper.git"
   },
   "keywords": [
     "discord.js",
@@ -27,5 +29,8 @@
     "discord.js": "^12.3.1",
     "dotenv": "^8.2.0",
     "monk": "^7.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
   }
 }

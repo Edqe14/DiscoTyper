@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { MessageEmbed, Permissions } = require('discord.js');
 
 module.exports = exports = {
   name: 'help',
@@ -10,7 +10,32 @@ module.exports = exports = {
   usage: '[command]',
   category: 'miscellaneous',
   async run (bot, message, args, config) {
+    const cmd = args[0];
     const col = config.var.colDefEmbed[Math.floor(Math.random() * config.var.colDefEmbed.length)];
+    const embed = new MessageEmbed()
+      .setColor(col)
+      .setTitle('Help')
+    
+    if (bot.commands.has(cmd) || bot.commands.some(c => c.aliases && c.aliases.includes(cmd))) {
+      const command = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
+      const perm = new Permissions(command.permissions || []).toArray();
+      embed.setDescription(
+        `**${command.name}**
+        ${command.description}
+        
+        **Category**: ${command.category[0].toUpperCase() + command.category.substring(1)}
+        **Aliases**: 
+        ${command.aliases.length === 0 ? 'None' : `\`${command.aliases.join(', ')}\``}
+        
+        **Usage**: 
+        \`${(`${config.prefix + command.name} ${command.usage}`).trim()}\`
+        
+        **Permission Required**:
+        ${perm.length === 0 ? 'None' : `\`\`\`${perm.map((a, i) => i % 2 === 1 ? `**${a}**` : a).join('\n')}\`\`\``}`)
+        .setTimestamp();
+        
+      return message.channel.send(embed);
+    }
 
     const category = {};
     bot.commands.forEach(c => {
@@ -21,10 +46,8 @@ module.exports = exports = {
       });
     });
 
-    const embed = new MessageEmbed()
-      .setColor(col)
-      .setTitle('Help')
-      .setDescription(
+    
+    embed.setDescription(
         `My prefix here is \`${config.prefix}\`
         
         ${Object.keys(category).map(c => `**${c}**\n${category[c].map(m => `\`${m.name}\` **-** ${m.description}`).join('\n')}`).join('\n\n')}`)

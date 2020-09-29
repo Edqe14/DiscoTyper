@@ -13,7 +13,10 @@
 
   console.log('Connecting to database...');
   bot.db = require('monk')(process.env.MONGODB);
-  console.log('Database connected');
+  bot.db.then(() => console.log('Database connected')).catch((e) => {
+    console.error('Failed to connect to DB', e);
+    process.exit(1);
+  });
 
   bot.setMaxListeners(10000);
   bot.config = config;
