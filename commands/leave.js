@@ -31,7 +31,7 @@ module.exports = exports = {
       return game.removePlayer(message.author);
     }
 
-    const game = bot.games.get(code);
+    const game = bot.games.get(code.toUpperCase());
     if (!game) return message.reply('Invalid game');
     if (!game.players.some(u => u.id === message.author.id)) return message.reply('You\'re not in this game');
     if (game.owner === message.author.id) {
@@ -40,7 +40,7 @@ module.exports = exports = {
       if (confirm) {
         await msg.reactions.removeAll();
         await msg.edit(`Successfully removed game **${game.code}**`);
-        return bot.games.delete(code);
+        return bot.games.delete(game.code);
       }
       await msg.reactions.removeAll();
       return await msg.edit('Cancelled');

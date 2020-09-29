@@ -58,8 +58,8 @@ module.exports = class Game extends EventEmitter {
 
     this.text = texts[Math.floor(Math.random() * length)];
     this.text_len = this.text.length;
-    this.ms_min_done = this.text_len / defCPS * 1000 - Math.floor(Math.random() * 500);
-    this.ms_max_done = this.text_len / defMinCPS * 1000 - Math.floor(Math.random() * 500);
+    this.ms_min_done = this.text_len / defCPS * 1000;
+    this.ms_max_done = this.text_len / defMinCPS * 1000;
 
     Game.log(this.code, this.channel, `Created a new game!\n\n**Code:** ${this.code}`, true, 1, null, null, `Type "${this.ops.prefix}join ${this.code}" to join the game!`);
   }
@@ -148,9 +148,9 @@ module.exports = class Game extends EventEmitter {
     this.isStarted = true;
     this.emit('game:start', this.code);
 
-    const msg = await Game.log(this.code, this.channel, null, true, 'Ready?!', colError);
+    const msg = await Game.log(this.code, this.channel, 'Hands on your keyboard!', true, 'Ready?!', colError);
     await sleep(1000);
-    await Game.log(this.code, msg, null, true, 'Get Set!', colSet);
+    await Game.log(this.code, msg, 'F - J', true, 'Get Set!', colSet);
     await sleep(1000);
     await Game.log(this.code, msg, `Type this text:\n\`\`\`${this.text}\`\`\``, true, 'Go!', colSuccess);
 
@@ -163,16 +163,16 @@ module.exports = class Game extends EventEmitter {
     this.collector.on('collect', async m => {
       if (this.finished.some(u => u.id === m.author.id)) return Game.log(this.code, this.channel, 'You already finish this sentence!', false, 2, null, defDeleteTime);
       const finish = m.createdTimestamp;
-      const duration = finish - (m.author.typingSinceIn(this.channel) || { getTime: () => this.start_time }).getTime();
-      const wpm = this.text_len / (duration / 1000) * 60 / 5;
-      const legit = this.sanitize(m, finish, wpm);
+      const duration = finish - this.start_time; // OK when immidietly start
+      const wpm = this.text_len / (duration / 1000) * 60 / 5; // OK
+      const legit = this.sanitize(m, wpm, duration);
       if (!legit) {
         await m.delete();
         return Game.log(this.code, this.channel, `Hey ${m.member.toString()}, it seems you didn't type it legitimately! Please try again.`, false, 2, null, defDeleteTime);
       }
 
       await m.react('✅');
-      const errors = Game.compare(this.text, m.content);
+      const { errors, str } = Game.compare(this.text, m.content);
       const acc = (this.text_len - errors) / this.text_len * 100;
 
       const prep = {
@@ -187,7 +187,7 @@ module.exports = class Game extends EventEmitter {
       };
       this.finished.push(prep);
 
-      Game.log(this.code, m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${wpm.toFixed(2)}\n> Time taken: ${duration / 1000} seconds\`\`\``, true);
+      Game.log(this.code, m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${wpm.toFixed(2)}\n> Time taken: ${duration / 1000} seconds\`\`\`\n${str}`, true);
       if (this.finished.length >= this.players.length) this.collector.stop('done');
     });
 
@@ -227,11 +227,20 @@ module.exports = class Game extends EventEmitter {
    * @param {String} b
    */
   static compare (a, b) {
+    let str = '```css\n'
     let errors = 0;
     for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) errors++;
+      if (a[i] !== b[i]) {
+        str += `[${b[i]}]`
+        errors++;
+      }
+      str += b[i];
     }
-    return errors;
+    str += '```'
+    return {
+      errors,
+      str
+    };
   }
 
   /**
@@ -307,17 +316,13 @@ module.exports = class Game extends EventEmitter {
    * @param {Number} ms
    * @param {Number} wpm
    */
-  sanitize (m, ms, wpm) {
-    const estDur = this.text_len / (wpm * 5 / 60) * 1000 - Math.floor(Math.random() * 500);
-    const durStartFin = ms - this.start_time;
-    const typingDur = ms - (m.author.typingSinceIn(this.channel) ? m.author.typingSinceIn(this.channel).getTime() : ms - m.author.typingDurationIn(this.channel));
-    // console.log(wpm, estDur, ms - typingDur, this.ms_min_done, typingDur)
-    // console.log(ms - this.start_time >= this.ms_min_done, ms - this.start_time > defMinFinishTime, Math.abs(typingDur - estDur) < defEstimateAverage)
-    return (wpm < defMaxWPM && typingDur >= this.ms_min_done && durStartFin > defMinFinishTime && Math.abs(typingDur - estDur) < defEstimateAverage) ? {
-      typingDuration: typingDur,
-      durationStartFinish: durStartFin,
+  sanitize (m, wpm, duration) {
+    const estDur = this.text_len / (wpm * 5 / 60) * 1000; // OK
+    // console.log(wpm, this.text_len, estDur, this.ms_min_done, duration)
+    return (wpm < defMaxWPM && duration >= this.ms_min_done && duration > defMinFinishTime && Math.abs(duration - estDur) < defEstimateAverage) ? {
+      durationStartFinish: duration,
       estimatedDuration: estDur,
-      minRangeTyping: Math.abs(typingDur - estDur)
+      minRangeTyping: Math.abs(duration - estDur)
     } : false;
   }
 };

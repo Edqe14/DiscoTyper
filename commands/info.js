@@ -18,10 +18,11 @@ module.exports = exports = {
     const game = bot.games.get(code);
     if (!game) return message.reply('Invalid game');
     const prep = `Code: **${game.code}**
-                  Author: **${bot.users.resolve(game.owner).toString()}**
-                  Created at: **${game.createdDate.toLocaleString('en-US', { timeZone: 'UTC', timeZoneName: 'short' })}**\n
-                  **Players** (${game.players.length} / ${game.limit}):
-                  ${game.players.map((u, i) => `${pad(i + 1)}. ${bot.users.resolve(u.id).toString()}`).join('\n')}`;
+Author: **${bot.users.resolve(game.owner).toString()}**
+Created at: **${game.createdDate.toLocaleString('en-US', { timeZone: 'UTC', timeZoneName: 'short' })}**
+
+**Players** (${game.players.length} / ${game.limit}):
+${game.players.map((u, i) => `${pad(i + 1)}. ${bot.users.resolve(u.id).toString()}`).join('\n')}`;
     Game.log(game.code, message.channel, prep, true);
   }
 };

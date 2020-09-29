@@ -5,7 +5,7 @@ module.exports = exports = {
   description: 'Show about me',
   cooldown: 10,
   permissions: null,
-  aliases: [],
+  aliases: ['what', 'describe'],
   args: false,
   usage: '',
   category: 'miscellaneous',

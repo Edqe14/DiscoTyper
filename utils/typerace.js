@@ -1,7 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-module.exports = class TypeRacer {
+module.exports = exports.default = class TypeRacer {
   static async fetchDOM (url) {
     return await axios.get(url);
   }
