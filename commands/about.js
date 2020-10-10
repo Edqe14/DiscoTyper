@@ -31,7 +31,8 @@ My developer added a small anti-cheat to prevent cheating but I believe you play
 You found a bug? or, You're a developer interested to contribute? Join my [Discord Server](https://discord.gg/GMRk6fw)
 
 **Vote me!**
-- [Discord Bot List](https://discordbotlist.com/bots/discotyper/upvote)`
+- [Discord Bot List](https://discordbotlist.com/bots/discotyper/upvote)
+- [Top.gg](https://top.gg/bot/754354859058135102) *\`(Awaiting for approval)\`*`
       ).setTimestamp();
 
     message.channel.send(embed);
