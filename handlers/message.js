@@ -20,9 +20,10 @@ module.exports = (bot, config, cooldowns) => {
 
     const prefix = config.prefix;
     const args = message.content.slice(prefix.length).split(' ');
-    const cmd = args.shift().toLowerCase();
+    let cmd = args.shift().toLowerCase();
 
-    if (!message.content.startsWith(prefix)) return;
+    if (!message.content.startsWith(prefix) && getIdFromMention(cmd) !== bot.user.id) return;
+    if (getIdFromMention(cmd) === bot.user.id && message.content !== `<@!${bot.user.id}>`) cmd = args.shift().toLowerCase();
 
     const c = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
     if (!c) return;
@@ -73,3 +74,10 @@ module.exports = (bot, config, cooldowns) => {
     setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
   });
 };
+
+function getIdFromMention (s) {
+  if (!s.startsWith('<@') && s[s.length - 1] !== '>') return null;
+  const a = s.slice(2, s.length - 1);
+  if (a.startsWith('!')) return a.slice(1);
+  return a;
+}

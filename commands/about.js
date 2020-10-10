@@ -5,7 +5,7 @@ module.exports = exports = {
   description: 'Show about me',
   cooldown: 10,
   permissions: null,
-  aliases: ['what', 'describe'],
+  aliases: ['readme', 'what', 'describe', 'vote', 'rules'],
   args: false,
   usage: '',
   category: 'miscellaneous',
@@ -14,18 +14,24 @@ module.exports = exports = {
     const embed = new MessageEmbed()
       .setColor(col)
       .setTitle('About Me')
+      .setThumbnail(bot.user.displayAvatarURL())
       .setDescription(
         `**Hello there!**
 
-My name is **${bot.user.username}** 🎉 *\`if you don't know yet\`*, currently developed by <@326966683187281922>. I'm a bot heavily inspired by [Typeracer](https://play.typeracer.com), created for you and your friend to play typeracer on Discord!
+My name is **${bot.user.username}** 🎉 *\`if you don't know yet\`*, currently developed by **\`@Edqe_#2686\`**. I'm a bot heavily inspired by [Typeracer](https://play.typeracer.com), created for you and your friend to play typeracer on Discord!
 
 There is some things that you're **not** allowed to do while playing, which is:
-    **1**. Cheating (Copy Paste, Macro, etc.)
-    **2**. Trolling
-    **3**. Spamming (Text, New Game, etc.)
+**\`\`\`
+1. Cheating (Copy Paste, Macro, etc.)
+2. Trolling
+3. Spamming (Text, New Game, etc.)
+\`\`\`**
 My developer added a small anti-cheat to prevent cheating but I believe you players to **not** cheat by any means 😃.
 
-You found a bug? or, You're a developer interested to contribute? Join my [Discord Server](https://discord.gg/GMRk6fw)`
+You found a bug? or, You're a developer interested to contribute? Join my [Discord Server](https://discord.gg/GMRk6fw)
+
+**Vote me!**
+- [Discord Bot List](https://discordbotlist.com/bots/discotyper/upvote)`
       ).setTimestamp();
 
     message.channel.send(embed);

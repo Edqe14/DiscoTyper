@@ -203,6 +203,7 @@ module.exports = class Game extends EventEmitter {
   finish (msg) {
     this.isFinished = true;
     this.emit('game.end', this.code);
+    Game.clean(this);
 
     this.top3 = this.finished.slice(0, 3);
     let prep = '';
@@ -219,6 +220,15 @@ module.exports = class Game extends EventEmitter {
     Game.log(this.code, (msg || this.channel), `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
 
     this.ops.gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
+  }
+  
+  /**
+   * Clean listeners
+   * @param {Object<this>} thisArgs
+   */
+  static clean (thisArgs) {
+    thisArgs.collector.removeAllListeners();
+    thisArgs.removeAllListeners();
   }
 
   /**
