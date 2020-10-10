@@ -7,7 +7,7 @@ module.exports = (bot, config, cooldowns) => {
   const gameHistory = bot.db.get('games');
 
   bot.on('message', async message => {
-    if (message.author === bot.user) return;
+    if (message.author === bot.user || message.author.bot) return;
 
     let settings = await guildConfig.findOne({ id: message.guild.id });
     if (!settings) {

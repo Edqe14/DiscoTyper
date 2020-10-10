@@ -1,6 +1,6 @@
 {
   "name": "discotyper",
-  "version": "1.1.1a",
+  "version": "1.1.1b",
   "description": "Typeracer inspired Discord bot",
   "main": "index.js",
   "scripts": {
