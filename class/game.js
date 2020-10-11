@@ -243,7 +243,7 @@ module.exports = class Game extends EventEmitter {
       if (a[i] !== b[i]) {
         str += `[${b[i]}]`;
         errors++;
-        return;
+        continue;
       }
       str += b[i];
     }
