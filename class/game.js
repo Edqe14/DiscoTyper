@@ -239,7 +239,7 @@ module.exports = class Game extends EventEmitter {
   static compare (a, b) {
     let str = '```css\n'
     let errors = 0;
-    for (let i = 0; i < a.length; i++) {
+    for (let i = 0; i < a.length - 1; i++) {
       if (a[i] !== b[i]) {
         str += `[${b[i]}]`;
         errors++;
