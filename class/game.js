@@ -241,8 +241,9 @@ module.exports = class Game extends EventEmitter {
     let errors = 0;
     for (let i = 0; i < a.length; i++) {
       if (a[i] !== b[i]) {
-        str += `[${b[i]}]`
+        str += `[${b[i]}]`;
         errors++;
+        return;
       }
       str += b[i];
     }
