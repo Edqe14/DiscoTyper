@@ -1,7 +1,8 @@
 {
   "prefix": "?",
   "uris": {
-    "text": "http://typeracerdata.com/texts?texts=full&sort=relative_average"
+    "text": "http://typeracerdata.com/texts?texts=full&sort=relative_average",
+    "discordbotlist": "https://discordbotlist.com/api/v1/bots/754354859058135102/stats"
   },
   "paths": {
     "text": "texts.json"
