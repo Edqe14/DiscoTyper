@@ -14,8 +14,8 @@ module.exports = exports = {
     const col = config.var.colDefEmbed[Math.floor(Math.random() * config.var.colDefEmbed.length)];
     const embed = new MessageEmbed()
       .setColor(col)
-      .setTitle('Help')
-    
+      .setTitle('Help');
+
     if (bot.commands.has(cmd) || bot.commands.some(c => c.aliases && c.aliases.includes(cmd))) {
       const command = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
       const perm = new Permissions(command.permissions || []).toArray();
@@ -32,8 +32,8 @@ ${command.aliases.length === 0 ? 'None' : `\`${command.aliases.join(', ')}\``}
         
 **Permission Required**:
 ${perm.length === 0 ? 'None' : `\`\`\`${perm.map((a, i) => i % 2 === 1 ? `**${a}**` : a).join('\n')}\`\`\``}`
-        ).setTimestamp();
-        
+      ).setTimestamp();
+
       return message.channel.send(embed);
     }
 
@@ -46,10 +46,9 @@ ${perm.length === 0 ? 'None' : `\`\`\`${perm.map((a, i) => i % 2 === 1 ? `**${a}
       });
     });
 
-    
     embed.setDescription(
         `My prefix here is \`${config.prefix}\`\n\n${Object.keys(category).map(c => `**${c}**\n${category[c].map(m => `\`${m.name}\` **-** ${m.description}`).join('\n')}`).join('\n\n')}`
-      ).setTimestamp();
+    ).setTimestamp();
 
     message.channel.send(embed);
   }

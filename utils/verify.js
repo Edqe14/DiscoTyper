@@ -5,7 +5,7 @@
 * @param {Number=30000} time
 */
 module.exports = exports.default = async (user, msg, time = 30000) => {
-  (async function() {
+  (async function () {
     await msg.react('🇾');
     await msg.react('🇳');
   })();

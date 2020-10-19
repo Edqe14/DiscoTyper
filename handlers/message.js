@@ -1,13 +1,24 @@
 const { Permissions } = require('discord.js');
 const Collection = require('@discordjs/collection');
 const GuildConfig = require('../models/guildConfig.js');
+const UserProfile = require('../models/userProfile.js');
 
 module.exports = (bot, config, cooldowns) => {
   const guildConfig = bot.db.get('guilds');
   const gameHistory = bot.db.get('games');
+  const userProfile = bot.db.get('users');
+
+  const dbs = module.exports.dbs = {
+    guildConfig,
+    gameHistory,
+    userProfile
+  };
 
   bot.on('message', async message => {
     if (message.author === bot.user || message.author.bot) return;
+
+    const user = await userProfile.findOne({ id: message.author.id });
+    if (!user) await userProfile.insert(new UserProfile(message.author));
 
     let settings = await guildConfig.findOne({ id: message.guild.id });
     if (!settings) {
@@ -64,10 +75,7 @@ module.exports = (bot, config, cooldowns) => {
     }
 
     if (c) {
-      c.run(bot, message, args, config, {
-        guildConfig,
-        gameHistory
-      });
+      c.run(bot, message, args, config, dbs);
     }
 
     timestamps.set(message.author.id, now);

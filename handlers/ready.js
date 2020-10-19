@@ -4,7 +4,7 @@ const DBL = require('dblapi.js');
 module.exports = (bot, config) => {
   bot.on('ready', () => {
     console.log(`Bot ready! Playing with ${bot.users.cache.size} users on ${bot.guilds.cache.size} servers`);
-    //const dapi = new DBL(process.env.TOPGG_TOKEN, bot);
+    // const dapi = new DBL(process.env.TOPGG_TOKEN, bot);
 
     update();
     async function update (lu, lg) {
@@ -18,7 +18,7 @@ module.exports = (bot, config) => {
           name
         }
       });
-      
+
       axios({
         method: 'POST',
         url: config.uris.discordbotlist,
@@ -30,7 +30,7 @@ module.exports = (bot, config) => {
           users
         }
       }).catch(console.error);
-      
+
       bot.setTimeout(() => update(users, guilds), 60000);
     }
   });

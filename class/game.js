@@ -2,10 +2,10 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { TextChannel, MessageEmbed, Message, User, GuildMember } = require('discord.js');
 const sleep = require('../utils/sleep.js');
-const pad = require('../utils/pad.js');
 const verify = require('../utils/verify.js');
 const GameHistory = require('../models/gameHistory.js');
 const { EventEmitter } = require('events');
+const { dbs: { gameHistory, userProfile } } = require('../handlers/message.js');
 const {
   paths: {
     text: path
@@ -159,20 +159,31 @@ module.exports = class Game extends EventEmitter {
       time: defIdle + this.ms_max_done
     });
     this.start_time = Date.now();
+    this.failPoints = new Map();
 
     this.collector.on('collect', async m => {
       if (this.finished.some(u => u.id === m.author.id)) return Game.log(this.code, this.channel, 'You already finish this sentence!', false, 2, null, defDeleteTime);
       const finish = m.createdTimestamp;
-      const duration = finish - this.start_time; // OK when immidietly start
-      const wpm = this.text_len / (duration / 1000) * 60 / 5; // OK
+      const duration = finish - (this.failPoints.has(m.author.id) ? this.failPoints.get(m.author.id) : this.start_time); // OK when immidietly start
+      const wpm = this.text_len / (duration / 1000) * 60 / 4.7; // OK
       const legit = this.sanitize(m, wpm, duration);
       if (!legit) {
+        this.failPoints.set(m.author.id, Date.now());
         await m.delete();
+
+        await sleep(Math.random() * 1500);
+        userProfile.findOneAndUpdate({ id: m.member.id }, {
+          $inc: {
+            'history.cheatDetection': 1
+          }
+        });
+
         return Game.log(this.code, this.channel, `Hey ${m.member.toString()}, it seems you didn't type it legitimately! Please try again.`, false, 2, null, defDeleteTime);
       }
 
+      const { errors, str } = (Game.compare(this.text, m.content) || {});
+      if (!errors && !str) return Game.log(this.code, this.channel, 'Oops, something went wrong! Please try again.');
       await m.react('✅');
-      const { errors, str } = Game.compare(this.text, m.content);
       const acc = (this.text_len - errors) / this.text_len * 100;
 
       const prep = {
@@ -188,7 +199,24 @@ module.exports = class Game extends EventEmitter {
       this.finished.push(prep);
 
       Game.log(this.code, m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${wpm.toFixed(2)}\n> Time taken: ${duration / 1000} seconds\`\`\`\n${str}`, true);
+
       if (this.finished.length >= this.players.length) this.collector.stop('done');
+
+      const u = await userProfile.findOne({ id: m.author.id });
+      if (!u) return;
+
+      await sleep(Math.random() * 1500);
+      userProfile.update({ id: m.author.id }, {
+        $inc: {
+          'stats.playCount': 1,
+          'stats.rawAccuracy': acc,
+          'stats.totalWPM': wpm
+        },
+        $set: {
+          'stats.accuracy': (u.stats.rawAccuracy + acc) / (u.stats.playCount + 1),
+          'stats.wpm': (u.stats.totalWPM + wpm) / (u.stats.playCount + 1)
+        }
+      });
     });
 
     this.collector.on('end', async () => {
@@ -200,17 +228,82 @@ module.exports = class Game extends EventEmitter {
    * Finish the game
    * @param {Message} msg
    */
-  finish (msg) {
+  async finish (msg) {
     this.isFinished = true;
     this.emit('game.end', this.code);
     Game.clean(this);
 
-    this.top3 = this.finished.slice(0, 3);
-    let prep = '';
-    this.top3.forEach((t, i) => {
-      prep += `#${pad(i + 1)}. ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+    this.finished.forEach(async (f) => {
+      await sleep(Math.random() * 2000);
+      const u = await userProfile.findOne({ id: f.id });
+      if (u) {
+        userProfile.findOneAndUpdate({ id: f.id }, {
+          $set: {
+            'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
+          }
+        });
+      }
     });
 
+    this.top3 = this.finished.slice(0, 3);
+    let prep = '';
+    this.top3.forEach(async (t, i) => {
+      await sleep(Math.random() * 1500);
+      const u = await userProfile.findOne({ id: t.id });
+      if (u) {
+        userProfile.findOneAndUpdate({ id: t.id }, {
+          $set: {
+            'stats.WLR': ((u.stats.winCount + 1) - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
+          }
+        });
+      }
+      await sleep(Math.random() * 200);
+      switch (i) {
+        case 0: {
+          prep += `🥇 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+
+          userProfile.findOneAndUpdate({ id: t.id }, {
+            $inc: {
+              'stats.winCount': 1,
+              'stats.winSpots.first': 1
+            }
+          });
+          break;
+        }
+
+        case 1: {
+          prep += `🥈 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+
+          userProfile.findOneAndUpdate({ id: t.id }, {
+            $inc: {
+              'stats.winCount': 1,
+              'stats.winSpots.second': 1
+            }
+          });
+          break;
+        }
+
+        case 2: {
+          prep += `🥉 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+
+          userProfile.findOneAndUpdate({ id: t.id }, {
+            $inc: {
+              'stats.winCount': 1,
+              'stats.winSpots.third': 1
+            }
+          });
+          break;
+        }
+
+        default: {
+          prep += `🏅 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          break;
+        }
+      }
+    });
+    
+    await sleep(1500);
+    
     const noFin = this.players.filter(u => !this.finished.some(f => f.id === u.id));
     noFin.forEach(u => {
       Game.log(this.code, u.user, 'You didn\'t finish the text on time', true);
@@ -219,9 +312,9 @@ module.exports = class Game extends EventEmitter {
     if (this.top3.length === 0 || this.finished.length <= 0) return Game.log(this.code, (msg || this.channel), 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
     Game.log(this.code, (msg || this.channel), `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
 
-    this.ops.gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
+    gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
   }
-  
+
   /**
    * Clean listeners
    * @param {Object<this>} thisArgs
@@ -237,7 +330,7 @@ module.exports = class Game extends EventEmitter {
    * @param {String} b
    */
   static compare (a, b) {
-    let str = '```css\n'
+    let str = '```css\n';
     let errors = 0;
     for (let i = 0; i < a.length; i++) {
       if (a[i] !== b[i]) {
@@ -247,7 +340,7 @@ module.exports = class Game extends EventEmitter {
       }
       str += a[i];
     }
-    str += '```'
+    str += '```';
     return {
       errors,
       str

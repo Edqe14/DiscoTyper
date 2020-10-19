@@ -14,8 +14,7 @@ module.exports = exports = {
     const own = bot.games.find(g => g.owner === message.author.id && !g.isFinished);
     if (own) return message.reply(`There is already a game (**${own.code}**) running with your user ID!`);
     let game = new Game(null, message.author.id, message.channel, [{ id: message.author.id, timestamp: Date.now(), user: message.author }], {
-      prefix: config.prefix,
-      gameHistory
+      prefix: config.prefix
     });
     bot.games.set(game.code, game);
     game.on('game:end', (code) => {

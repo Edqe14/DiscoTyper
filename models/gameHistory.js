@@ -12,6 +12,7 @@ module.exports = class GameHistory {
     this.author = thisArgs.owner;
     this.text = thisArgs.text;
     this.values = {
+      failPoints: thisArgs.failPoints,
       msMinDone: thisArgs.ms_min_done,
       msMaxDone: thisArgs.ms_max_done,
       maxWPM: defMaxWPM,
