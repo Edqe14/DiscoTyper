@@ -260,7 +260,7 @@ module.exports = class Game extends EventEmitter {
       await sleep(Math.random() * 200);
       switch (i) {
         case 0: {
-          prep += `🥇 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥇 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
@@ -272,7 +272,7 @@ module.exports = class Game extends EventEmitter {
         }
 
         case 1: {
-          prep += `🥈 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥈 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
@@ -284,7 +284,7 @@ module.exports = class Game extends EventEmitter {
         }
 
         case 2: {
-          prep += `🥉 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥉 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
@@ -296,21 +296,21 @@ module.exports = class Game extends EventEmitter {
         }
 
         default: {
-          prep += `🏅 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🏅 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
           break;
         }
       }
     });
-    
+
     await sleep(1500);
-    
+
     const noFin = this.players.filter(u => !this.finished.some(f => f.id === u.id));
     noFin.forEach(u => {
       Game.log(this.code, u.user, 'You didn\'t finish the text on time', true);
     });
 
     if (this.top3.length === 0 || this.finished.length <= 0) return Game.log(this.code, (msg || this.channel), 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
-    Game.log(this.code, (msg || this.channel), `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+    Game.log(this.code, (msg || this.channel), `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n${prep}`, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
 
     gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
   }
