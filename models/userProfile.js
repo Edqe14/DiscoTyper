@@ -1,5 +1,3 @@
-const { User } = require('discord.js');
-
 module.exports = class UserProfile {
   /**
    * New user configuration schema
@@ -8,6 +6,11 @@ module.exports = class UserProfile {
   constructor (user) {
     this.id = user.id;
     this.username = user.username;
+    this.xp = {
+      level: 0,
+      current: 0,
+      next: 300
+    };
     this.stats = {
       playCount: 0,
       rawAccuracy: 0,

@@ -24,7 +24,9 @@ const {
     defDeleteTime,
     defPlayerLimit,
     defStartTimeReminder,
-    defEstimateAverage
+    defEstimateAverage,
+    defLengthMax,
+    LEVEL_UP_EMOJIS
   }
 } = require('../config.json');
 
@@ -55,6 +57,10 @@ module.exports = class Game extends EventEmitter {
     this.isStarted = false;
     this.isFinished = false;
     this.startTimer = undefined;
+    this.timeout = setTimeout(() => {
+      Game.clean(this);
+      this.emit('game:timeout', this.code);
+    }, 5 * 60 * 1000);
 
     this.text = texts[Math.floor(Math.random() * length)];
     this.text_len = this.text.length;
@@ -166,7 +172,7 @@ module.exports = class Game extends EventEmitter {
       const finish = m.createdTimestamp;
       const duration = finish - (this.failPoints.has(m.author.id) ? this.failPoints.get(m.author.id) : this.start_time); // OK when immidietly start
       const wpm = this.text_len / (duration / 1000) * 60 / 4.7; // OK
-      const legit = this.sanitize(m, wpm, duration);
+      const legit = this.sanitize(m, wpm, duration, this.text);
       if (!legit) {
         this.failPoints.set(m.author.id, Date.now());
         await m.delete();
@@ -205,7 +211,7 @@ module.exports = class Game extends EventEmitter {
       const u = await userProfile.findOne({ id: m.author.id });
       if (!u) return;
 
-      await sleep(Math.random() * 1500);
+      await sleep(Math.random() * 800);
       userProfile.update({ id: m.author.id }, {
         $inc: {
           'stats.playCount': 1,
@@ -234,13 +240,30 @@ module.exports = class Game extends EventEmitter {
     Game.clean(this);
 
     this.finished.forEach(async (f) => {
-      await sleep(Math.random() * 2000);
+      await sleep(Math.random() * 1500);
       const u = await userProfile.findOne({ id: f.id });
       if (u) {
+        const xp = Math.random() * 150 + 10;
+
+        let level = u.xp.level;
+        let next = u.xp.next;
+        let uxp = u.xp.current + xp;
+        if (uxp >= next) {
+          uxp = uxp - next;
+          level++;
+          next += Math.floor(25 / 100 * next);
+          this.channel.guild.member(f.id).send(`${LEVEL_UP_EMOJIS[Math.floor(Math.random() * LEVEL_UP_EMOJIS.length)]} Level Up to ${level}!`);
+        }
+
+        const $set = {
+          'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount,
+          'xp.level': level,
+          'xp.current': uxp,
+          'xp.next': next
+        };
+
         userProfile.findOneAndUpdate({ id: f.id }, {
-          $set: {
-            'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
-          }
+          $set
         });
       }
     });
@@ -248,23 +271,25 @@ module.exports = class Game extends EventEmitter {
     this.top3 = this.finished.slice(0, 3);
     let prep = '';
     this.top3.forEach(async (t, i) => {
-      await sleep(Math.random() * 1500);
+      await sleep(Math.random() * 1200);
       const u = await userProfile.findOne({ id: t.id });
       if (u) {
         userProfile.findOneAndUpdate({ id: t.id }, {
           $set: {
             'stats.WLR': ((u.stats.winCount + 1) - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
+          },
+          $inc: {
+            'stats.winCount': 1
           }
         });
       }
-      await sleep(Math.random() * 200);
+      await sleep(Math.random() * 120);
       switch (i) {
         case 0: {
-          prep += `> 🥇 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥇 **${t.username}** with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
-              'stats.winCount': 1,
               'stats.winSpots.first': 1
             }
           });
@@ -276,7 +301,6 @@ module.exports = class Game extends EventEmitter {
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
-              'stats.winCount': 1,
               'stats.winSpots.second': 1
             }
           });
@@ -288,7 +312,6 @@ module.exports = class Game extends EventEmitter {
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
-              'stats.winCount': 1,
               'stats.winSpots.third': 1
             }
           });
@@ -420,10 +443,10 @@ module.exports = class Game extends EventEmitter {
    * @param {Number} ms
    * @param {Number} wpm
    */
-  sanitize (m, wpm, duration) {
+  sanitize (m, wpm, duration, text) {
     const estDur = this.text_len / (wpm * 5 / 60) * 1000; // OK
     // console.log(wpm, this.text_len, estDur, this.ms_min_done, duration)
-    return (wpm < defMaxWPM && duration >= this.ms_min_done && duration > defMinFinishTime && Math.abs(duration - estDur) < defEstimateAverage) ? {
+    return (wpm < defMaxWPM && duration >= this.ms_min_done && duration > defMinFinishTime && Math.abs(duration - estDur) < defEstimateAverage) && (m.content.length - text.length) <= defLengthMax ? {
       durationStartFinish: duration,
       estimatedDuration: estDur,
       minRangeTyping: Math.abs(duration - estDur)

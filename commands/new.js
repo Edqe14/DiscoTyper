@@ -19,7 +19,14 @@ module.exports = exports = {
     bot.games.set(game.code, game);
     game.on('game:end', (code) => {
       bot.games.delete(code);
+      game.removeAllListeners();
       game = null;
+    });
+    game.on('game:timeout', (code) => {
+      bot.games.delete(code);
+      game.removeAllListeners();
+      game = null;
+      message.author.send('❌ Game timed out. Please create a new room!');
     });
   }
 };
