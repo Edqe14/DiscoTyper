@@ -32,7 +32,7 @@ You found a bug? or, You're a developer interested to contribute? Join my [Disco
 
 **Vote me!**
 - [Discord Bot List](https://discordbotlist.com/bots/discotyper/upvote)
-- [Top.gg](https://top.gg/bot/754354859058135102) *\`(Awaiting for approval)\`*`
+- [Top.gg](https://top.gg/bot/754354859058135102)`
       ).setTimestamp();
 
     message.channel.send(embed);
