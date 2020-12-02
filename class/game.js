@@ -238,7 +238,7 @@ module.exports = class Game extends EventEmitter {
       await sleep(Math.random() * 1200);
       const u = await userProfile.findOne({ id: f.id });
       if (u) {
-        const xp = Math.random() * 100 + 10;
+        const xp = Math.random() * 80 + 20;
 
         let level = u.xp.level;
         let next = u.xp.next;
@@ -246,8 +246,8 @@ module.exports = class Game extends EventEmitter {
         if (uxp >= next) {
           uxp = uxp - next;
           level++;
-          next += Math.floor(25 / 100 * next);
-          this.channel.guild.member(f.id).send(`${LEVEL_UP_EMOJIS[Math.floor(Math.random() * LEVEL_UP_EMOJIS.length)]} Level Up to ${level}!`);
+          next += Math.floor(23 / 100 * next);
+          this.channel.guild.member(f.id).send(`${LEVEL_UP_EMOJIS[Math.floor(Math.random() * LEVEL_UP_EMOJIS.length)]} **Level Up!** You're now level \`${level}\``);
         }
 
         const $set = {

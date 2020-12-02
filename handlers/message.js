@@ -19,6 +19,7 @@ module.exports = async (bot, config, cooldowns) => {
 
   bot.on('message', async message => {
     if (message.author === bot.user || message.author.bot) return;
+    if (message.channel.type === 'dm') return;
 
     const user = await userProfile.findOne({ id: message.author.id });
     if (!user) await userProfile.insert(new UserProfile(message.author));
