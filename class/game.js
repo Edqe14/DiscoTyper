@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const fs = require('fs');
-const { TextChannel, MessageEmbed, Message, User, GuildMember } = require('discord.js');
+const { TextChannel, MessageEmbed, Message, User, GuildMember, MessageAttachment } = require('discord.js');
 const sleep = require('../utils/sleep.js');
 const verify = require('../utils/verify.js');
 const GameHistory = require('../models/gameHistory.js');
@@ -24,9 +24,12 @@ const {
     defDeleteTime,
     defPlayerLimit,
     defStartTimeReminder,
-    defEstimateAverage
+    defEstimateAverage,
+    defMinAfterStart,
+    LEVEL_UP_EMOJIS
   }
 } = require('../config.json');
+const generateImage = require('../utils/generateImage.js');
 
 if (!fs.existsSync(`${__dirname.replace(/\\/gi, '/')}/../${path}`)) throw new Error('Invalid text path');
 const { texts, length } = require(`${__dirname.replace(/\\/gi, '/')}/../${path}`);
@@ -55,6 +58,9 @@ module.exports = class Game extends EventEmitter {
     this.isStarted = false;
     this.isFinished = false;
     this.startTimer = undefined;
+    this.timeout = setTimeout(() => {
+      if (!this.isStarted && !this.isFinished) this.emit('game:timeout', this.code);
+    }, 5 * 60 * 1000);
 
     this.text = texts[Math.floor(Math.random() * length)];
     this.text_len = this.text.length;
@@ -145,14 +151,17 @@ module.exports = class Game extends EventEmitter {
       m.delete();
       if (!ver) return Game.log(this.code, this.channel, 'Cancelled');
     }
+    clearTimeout(this.timeout);
     this.isStarted = true;
     this.emit('game:start', this.code);
 
-    const msg = await Game.log(this.code, this.channel, 'Hands on your keyboard!', true, 'Ready?!', colError);
+    let msg = await Game.log(this.code, this.channel, 'Hands on your keyboard!', true, 'Ready?!', colError);
     await sleep(1000);
     await Game.log(this.code, msg, 'F - J', true, 'Get Set!', colSet);
-    await sleep(1000);
-    await Game.log(this.code, msg, `Type this text:\n\`\`\`${this.text}\`\`\``, true, 'Go!', colSuccess);
+    await sleep(800);
+    // await Game.log(this.code, msg, `Type this text:\n\`\`\`${this.text}\`\`\``, true, 'Go!', colSuccess);
+    await msg.delete();
+    msg = await Game.log(this.code, this.channel, null, true, 'Go!', colSuccess, null, null, await generateImage(this.text));
 
     this.finished = [];
     this.collector = this.channel.createMessageCollector(m => this.players.some(u => u.id === m.author.id) && !this.finished.some(u => u.id === m.author.id), {
@@ -166,19 +175,10 @@ module.exports = class Game extends EventEmitter {
       const finish = m.createdTimestamp;
       const duration = finish - (this.failPoints.has(m.author.id) ? this.failPoints.get(m.author.id) : this.start_time); // OK when immidietly start
       const wpm = this.text_len / (duration / 1000) * 60 / 4.7; // OK
-      const legit = this.sanitize(m, wpm, duration);
-      if (!legit) {
-        this.failPoints.set(m.author.id, Date.now());
-        await m.delete();
-
-        await sleep(Math.random() * 1500);
-        userProfile.findOneAndUpdate({ id: m.member.id }, {
-          $inc: {
-            'history.cheatDetection': 1
-          }
-        });
-
-        return Game.log(this.code, this.channel, `Hey ${m.member.toString()}, it seems you didn't type it legitimately! Please try again.`, false, 2, null, defDeleteTime);
+      const analytics = this.sanitize(m, wpm, duration, this.text);
+      if (duration < defMinAfterStart || m.content.length < this.text.length / 8) {
+        m.delete();
+        return m.reply('I think you typed that by accident. You can try again 🙂');
       }
 
       const { errors, str } = (Game.compare(this.text, m.content) || {});
@@ -194,8 +194,9 @@ module.exports = class Game extends EventEmitter {
         wpm,
         duration,
         timestamp: finish,
-        antiCheatData: legit
+        antiCheatData: analytics
       };
+
       this.finished.push(prep);
 
       Game.log(this.code, m.author, `Congrats! You finished the race and took the **#${this.finished.findIndex(u => u.id === m.author.id) + 1}** spot!\n\n\`\`\`Stats:\n> Errors: ${prep.errors}\n> Accuracy: ${prep.acc.toFixed(2)}%\n> WPM: ${wpm.toFixed(2)}\n> Time taken: ${duration / 1000} seconds\`\`\`\n${str}`, true);
@@ -205,7 +206,7 @@ module.exports = class Game extends EventEmitter {
       const u = await userProfile.findOne({ id: m.author.id });
       if (!u) return;
 
-      await sleep(Math.random() * 1500);
+      await sleep(Math.random() * 800);
       userProfile.update({ id: m.author.id }, {
         $inc: {
           'stats.playCount': 1,
@@ -234,13 +235,30 @@ module.exports = class Game extends EventEmitter {
     Game.clean(this);
 
     this.finished.forEach(async (f) => {
-      await sleep(Math.random() * 2000);
+      await sleep(Math.random() * 1200);
       const u = await userProfile.findOne({ id: f.id });
       if (u) {
+        const xp = Math.random() * 80 + 20;
+
+        let level = u.xp.level;
+        let next = u.xp.next;
+        let uxp = u.xp.current + xp;
+        if (uxp >= next) {
+          uxp = uxp - next;
+          level++;
+          next += Math.floor(23 / 100 * next);
+          this.channel.guild.member(f.id).send(`${LEVEL_UP_EMOJIS[Math.floor(Math.random() * LEVEL_UP_EMOJIS.length)]} **Level Up!** You're now level \`${level}\``);
+        }
+
+        const $set = {
+          'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount,
+          'xp.level': level,
+          'xp.current': uxp,
+          'xp.next': next
+        };
+
         userProfile.findOneAndUpdate({ id: f.id }, {
-          $set: {
-            'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
-          }
+          $set
         });
       }
     });
@@ -248,23 +266,25 @@ module.exports = class Game extends EventEmitter {
     this.top3 = this.finished.slice(0, 3);
     let prep = '';
     this.top3.forEach(async (t, i) => {
-      await sleep(Math.random() * 1500);
+      await sleep(Math.random() * 1200);
       const u = await userProfile.findOne({ id: t.id });
       if (u) {
         userProfile.findOneAndUpdate({ id: t.id }, {
           $set: {
             'stats.WLR': ((u.stats.winCount + 1) - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
+          },
+          $inc: {
+            'stats.winCount': 1
           }
         });
       }
-      await sleep(Math.random() * 200);
+      await sleep(Math.random() * 120);
       switch (i) {
         case 0: {
-          prep += `🥇 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥇 **${t.username}** with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
-              'stats.winCount': 1,
               'stats.winSpots.first': 1
             }
           });
@@ -272,11 +292,10 @@ module.exports = class Game extends EventEmitter {
         }
 
         case 1: {
-          prep += `🥈 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥈 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
-              'stats.winCount': 1,
               'stats.winSpots.second': 1
             }
           });
@@ -284,11 +303,10 @@ module.exports = class Game extends EventEmitter {
         }
 
         case 2: {
-          prep += `🥉 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🥉 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
 
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
-              'stats.winCount': 1,
               'stats.winSpots.third': 1
             }
           });
@@ -296,21 +314,22 @@ module.exports = class Game extends EventEmitter {
         }
 
         default: {
-          prep += `🏅 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          prep += `> 🏅 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
           break;
         }
       }
     });
-    
+
     await sleep(1500);
-    
+
     const noFin = this.players.filter(u => !this.finished.some(f => f.id === u.id));
     noFin.forEach(u => {
       Game.log(this.code, u.user, 'You didn\'t finish the text on time', true);
     });
 
-    if (this.top3.length === 0 || this.finished.length <= 0) return Game.log(this.code, (msg || this.channel), 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
-    Game.log(this.code, (msg || this.channel), `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n\`\`\`${prep}\`\`\``, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+    await msg.delete();
+    if (this.top3.length === 0 || this.finished.length <= 0) return Game.log(this.code, this.channel, 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+    Game.log(this.code, this.channel, `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n${prep}`, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
 
     gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
   }
@@ -355,8 +374,9 @@ module.exports = class Game extends EventEmitter {
    * @param {?Number} type
    * @param {?ColorResolvable} color
    * @param {*} footer
+   * @param {Buffer} image
    */
-  static async log (code, t, message, embed = false, type = 2, color = 'RANDOM', del, footer) {
+  static async log (code, t, message, embed = false, type = 2, color = 'RANDOM', del, footer, image) {
     if (!(t instanceof TextChannel) && !(t instanceof Message) && !(t instanceof User) && !(t instanceof GuildMember)) Array.prototype.unshift.call(arguments, this.channel);
     if (!embed) {
       message = (`\`[${code}]\` ${message}`).trim();
@@ -406,6 +426,10 @@ module.exports = class Game extends EventEmitter {
 
     if (!message) mbed.description = undefined;
     if (!footer) mbed.footer = undefined;
+    if (image && image instanceof Buffer) {
+      const attachment = new MessageAttachment(image, 'image.webp');
+      mbed.attachFiles([attachment]).setImage('attachment://image.webp');
+    }
     if (!(t instanceof TextChannel) && t instanceof Message) {
       if (!del) return t.edit(mbed);
       return t.delete({ timeout: del });
@@ -420,13 +444,13 @@ module.exports = class Game extends EventEmitter {
    * @param {Number} ms
    * @param {Number} wpm
    */
-  sanitize (m, wpm, duration) {
+  sanitize (_, wpm, duration) {
     const estDur = this.text_len / (wpm * 5 / 60) * 1000; // OK
     // console.log(wpm, this.text_len, estDur, this.ms_min_done, duration)
-    return (wpm < defMaxWPM && duration >= this.ms_min_done && duration > defMinFinishTime && Math.abs(duration - estDur) < defEstimateAverage) ? {
+    return {
       durationStartFinish: duration,
       estimatedDuration: estDur,
       minRangeTyping: Math.abs(duration - estDur)
-    } : false;
+    };
   }
 };

@@ -16,10 +16,12 @@
     "defMinPlayer": 3,
     "defStartTime": 15000,
     "defStartTimeReminder": 10000,
-    "defEstimateAverage": 3500,
+    "defEstimateAverage": 4000,
     "defDeleteTime": 5000,
     "defPlayerLimit": 8,
     "defTutorialEndTime": 90000,
+    "defLengthMax": 3,
+    "defMinAfterStart": 5000,
     "defInvitePerms": ["SEND_MESSAGES", "VIEW_CHANNEL", "MANAGE_MESSAGES", "USE_EXTERNAL_EMOJIS", "ADD_REACTIONS", "EMBED_LINKS", "READ_MESSAGE_HISTORY"],
     "colInfo": "#fafafa",
     "colSuccess": "#07dc00",
@@ -30,9 +32,14 @@
       "#bb83e3",
       "#82bfab",
       "#99a7e3"
+    ],
+    "LEVEL_UP_EMOJIS": [
+      "🎉",
+      "🆙",
+      "🔼"
     ]
   },
   "game": {
-    "maxGame": 50
+    "maxGame": 40
   }
 }

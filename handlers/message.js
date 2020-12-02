@@ -2,11 +2,12 @@ const { Permissions } = require('discord.js');
 const Collection = require('@discordjs/collection');
 const GuildConfig = require('../models/guildConfig.js');
 const UserProfile = require('../models/userProfile.js');
+const sleep = require('../utils/sleep.js');
 
-module.exports = (bot, config, cooldowns) => {
-  const guildConfig = bot.db.get('guilds');
-  const gameHistory = bot.db.get('games');
-  const userProfile = bot.db.get('users');
+module.exports = async (bot, config, cooldowns) => {
+  const guildConfig = bot.db.get(process.env.NODE_ENV === 'development' ? 'guilds-dev' : 'guilds');
+  const gameHistory = bot.db.get(process.env.NODE_ENV === 'development' ? 'games-dev' : 'games');
+  const userProfile = bot.db.get(process.env.NODE_ENV === 'development' ? 'users-dev' : 'users');
 
   const dbs = module.exports.dbs = {
     guildConfig,
@@ -14,8 +15,11 @@ module.exports = (bot, config, cooldowns) => {
     userProfile
   };
 
+  await sleep(1500);
+
   bot.on('message', async message => {
     if (message.author === bot.user || message.author.bot) return;
+    if (message.channel.type === 'dm') return;
 
     const user = await userProfile.findOne({ id: message.author.id });
     if (!user) await userProfile.insert(new UserProfile(message.author));
