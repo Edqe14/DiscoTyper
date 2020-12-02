@@ -30,7 +30,6 @@ const {
   }
 } = require('../config.json');
 const generateImage = require('../utils/generateImage.js');
-const message = require('../handlers/message.js');
 
 if (!fs.existsSync(`${__dirname.replace(/\\/gi, '/')}/../${path}`)) throw new Error('Invalid text path');
 const { texts, length } = require(`${__dirname.replace(/\\/gi, '/')}/../${path}`);
