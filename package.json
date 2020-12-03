@@ -1,6 +1,6 @@
 {
   "name": "discotyper",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Typeracer inspired Discord bot",
   "main": "index.js",
   "scripts": {
@@ -31,6 +31,7 @@
     "discord.js": "^12.3.1",
     "dotenv": "^8.2.0",
     "monk": "^7.3.2",
+    "safe-eval": "git+https://github.com/hacksparrow/safe-eval.git",
     "webp-converter": "^2.3.1"
   },
   "devDependencies": {
