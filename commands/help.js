@@ -39,6 +39,7 @@ ${perm.length === 0 ? 'None' : `\`\`\`${perm.map((a, i) => i % 2 === 1 ? `**${a}
 
     const category = {};
     bot.commands.forEach(c => {
+      if (c.category.toUpperCase() === 'OWNER ONLY' && !config.ownerIDs.includes(message.author.id)) return;
       if (!category[c.category.toUpperCase()]) category[c.category.toUpperCase()] = [];
       category[c.category.toUpperCase()].push({
         name: c.name,

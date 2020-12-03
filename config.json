@@ -1,5 +1,8 @@
 {
   "prefix": "?",
+  "ownerIDs": [
+    "326966683187281922"
+  ],
   "uris": {
     "text": "http://typeracerdata.com/texts?texts=full&sort=relative_average",
     "discordbotlist": "https://discordbotlist.com/api/v1/bots/754354859058135102/stats"

@@ -42,6 +42,7 @@ module.exports = async (bot, config, cooldowns) => {
 
     const c = bot.commands.get(cmd) || bot.commands.find((cd) => cd.aliases && cd.aliases.includes(cmd));
     if (!c) return;
+    if (c.ownerOnly && !config.ownerIDs.includes(message.author.id)) return;
     if (c.permissions && message.channel.type !== 'dm') {
       const perms = new Permissions(c.permissions);
       if (!message.member.hasPermission(perms)) {
@@ -82,6 +83,7 @@ module.exports = async (bot, config, cooldowns) => {
       c.run(bot, message, args, config, dbs);
     }
 
+    if (config.ownerIDs.includes(message.author.id)) return;
     timestamps.set(message.author.id, now);
     setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
   });
