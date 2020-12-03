@@ -8,11 +8,13 @@ module.exports = async (bot, config, cooldowns) => {
   const guildConfig = bot.db.get(process.env.NODE_ENV === 'development' ? 'guilds-dev' : 'guilds');
   const gameHistory = bot.db.get(process.env.NODE_ENV === 'development' ? 'games-dev' : 'games');
   const userProfile = bot.db.get(process.env.NODE_ENV === 'development' ? 'users-dev' : 'users');
+  const statsCollection = bot.db.get(process.env.NODE_ENV === 'development' ? 'stats-dev' : 'stats');
 
   const dbs = module.exports.dbs = {
     guildConfig,
     gameHistory,
-    userProfile
+    userProfile,
+    statsCollection
   };
 
   await sleep(1500);

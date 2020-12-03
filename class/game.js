@@ -231,8 +231,6 @@ module.exports = class Game extends EventEmitter {
    */
   async finish (msg) {
     this.isFinished = true;
-    this.emit('game.end', this.code);
-    Game.clean(this);
 
     this.finished.forEach(async (f) => {
       await sleep(Math.random() * 1200);
@@ -328,9 +326,13 @@ module.exports = class Game extends EventEmitter {
     });
 
     await msg.delete();
-    if (this.top3.length === 0 || this.finished.length <= 0) return Game.log(this.code, this.channel, 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+    if (this.top3.length === 0 || this.finished.length <= 0) {
+      Game.clean(this);
+      return Game.log(this.code, this.channel, 'Nobody typed the text on time...', true, 2, null, null, 'This game is ended, please make or join another game to play again!');
+    }
+    this.emit('game:end', this.code);
+    Game.clean(this);
     Game.log(this.code, this.channel, `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n${prep}`, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
-
     gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
   }
 
