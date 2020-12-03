@@ -1,5 +1,3 @@
-const { Guild } = require('discord.js');
-
 module.exports = class GuildConfig {
   /**
    * New guild configuration schema
