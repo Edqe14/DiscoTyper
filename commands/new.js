@@ -1,4 +1,5 @@
 const Game = require('../class/game.js');
+const chalk = require('chalk');
 
 module.exports = exports = {
   name: 'newgame',
@@ -17,16 +18,19 @@ module.exports = exports = {
       prefix: config.prefix
     });
     bot.games.set(game.code, game);
+    console.log(`${chalk.dim.gray('CREATED GAME')} [${chalk.dim.yellow(game.code)}]`);
     game.on('game:end', (code) => {
       bot.games.delete(code);
       game.removeAllListeners();
       game = null;
+      console.log(`${chalk.dim.gray('GAME FINISHED')} [${chalk.dim.green(game.code)}]`);
     });
     game.on('game:timeout', (code) => {
       bot.games.delete(code);
       game.removeAllListeners();
       game = null;
       message.author.send('❌ Game timed out. Please create a new room!');
+      console.log(`${chalk.dim.gray('GAME TIMEOUT')} [${chalk.dim.red(game.code)}]`);
     });
   }
 };

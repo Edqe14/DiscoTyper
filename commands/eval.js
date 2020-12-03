@@ -7,7 +7,7 @@ module.exports = exports = {
   description: 'Eval code',
   cooldown: 0,
   permissions: null,
-  aliases: ['new', 'create'],
+  aliases: [],
   args: false,
   usage: '',
   category: 'owner only',
