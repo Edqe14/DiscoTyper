@@ -26,6 +26,7 @@
     "@discordjs/collection": "^0.1.6",
     "axios": "^0.20.0",
     "canvas": "^2.6.1",
+    "chalk": "^4.1.0",
     "cheerio": "^1.0.0-rc.3",
     "dblapi.js": "^2.4.1",
     "discord.js": "^12.3.1",
