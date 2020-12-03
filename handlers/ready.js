@@ -4,7 +4,7 @@ const DBL = require('dblapi.js');
 module.exports = (bot, config) => {
   bot.on('ready', () => {
     if (process.env.NODE_ENV !== 'prod') return console.log('Bot DEV Ready');
-    console.log(`Bot ready! Playing with ${bot.users.cache.size} users on ${bot.guilds.cache.size} servers`);
+    console.log(`Bot ready! Playing with ${bot.guilds.cache.reduce((a, g) => a + g.members.cache.filter(m => !m.user.bot).size, 0)} members on ${bot.guilds.cache.size} servers`);
     const dapi = new DBL(process.env.TOPGG_TOKEN, bot);
     dapi.on('error', e => {
       console.error(e);
