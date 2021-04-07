@@ -54,7 +54,7 @@ module.exports = class Game extends EventEmitter {
     this.players = players || [];
     this.channel = channel;
     this.guild = this.channel.guild.id;
-    this.ops = Object.assign({}, ops);
+    this.ops = ops ?? {};
     this.isStarted = false;
     this.isFinished = false;
     this.startTimer = undefined;
@@ -83,7 +83,7 @@ module.exports = class Game extends EventEmitter {
    * Add a player (user id) to the game
    * @param {GuildMember|User} user
    */
-  addPlayer (user, ws) {
+  addPlayer (user) {
     if (this.isStarted) return Game.log(this.code, this.channel, 'This game is already started', true, 0);
     if (!user) throw new Error('Invalid user');
 
@@ -203,10 +203,11 @@ module.exports = class Game extends EventEmitter {
 
       if (this.finished.length >= this.players.length) this.collector.stop('done');
 
+      if (this.players.length <= 1) return;
       const u = await userProfile.findOne({ id: m.author.id });
       if (!u) return;
 
-      await sleep(Math.random() * 800);
+      await sleep(Math.random() * 500);
       userProfile.update({ id: m.author.id }, {
         $inc: {
           'stats.playCount': 1,
@@ -232,41 +233,43 @@ module.exports = class Game extends EventEmitter {
   async finish (msg) {
     this.isFinished = true;
 
-    this.finished.forEach(async (f) => {
-      await sleep(Math.random() * 1000);
-      const u = await userProfile.findOne({ id: f.id });
-      if (u) {
-        const xp = Math.random() * 80 + 20;
+    const solo = this.players.length <= 1;
+    if (!solo) {
+      this.finished.forEach(async (f) => {
+        await sleep(Math.random() * 1000);
+        const u = await userProfile.findOne({ id: f.id });
+        if (u) {
+          const xp = Math.random() * 80 + 20;
 
-        let level = u.xp.level;
-        let next = u.xp.next;
-        let uxp = u.xp.current + xp;
-        if (uxp >= next) {
-          uxp = uxp - next;
-          level++;
-          next += Math.floor(23 / 100 * next);
-          this.channel.guild.member(f.id).send(`${LEVEL_UP_EMOJIS[Math.floor(Math.random() * LEVEL_UP_EMOJIS.length)]} **Level Up!** You're now level \`${level}\``);
+          let level = u.xp.level;
+          let next = u.xp.next;
+          let uxp = u.xp.current + xp;
+          if (uxp >= next) {
+            uxp = uxp - next;
+            level++;
+            next += Math.floor(23 / 100 * next);
+            this.channel.guild.member(f.id).send(`${LEVEL_UP_EMOJIS[Math.floor(Math.random() * LEVEL_UP_EMOJIS.length)]} **Level Up!** You're now level \`${level}\``);
+          }
+
+          const $set = {
+            'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount,
+            'xp.level': level,
+            'xp.current': uxp,
+            'xp.next': next
+          };
+
+          await userProfile.findOneAndUpdate({ id: f.id }, {
+            $set
+          });
         }
-
-        const $set = {
-          'stats.WLR': (u.stats.winCount - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount,
-          'xp.level': level,
-          'xp.current': uxp,
-          'xp.next': next
-        };
-
-        await userProfile.findOneAndUpdate({ id: f.id }, {
-          $set
-        });
-      }
-    });
+      });
+    }
 
     this.top3 = this.finished.slice(0, 3);
     let prep = '';
     for (let i = 0; i < this.top3.length; i++) {
       const t = this.top3[i];
 
-      const solo = this.players.length <= 1;
       if (!solo) {
         const u = await userProfile.findOne({ id: t.id });
         if (u) {
