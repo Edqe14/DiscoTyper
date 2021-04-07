@@ -1,6 +1,6 @@
 {
   "name": "discotyper",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Typeracer inspired Discord bot",
   "main": "index.js",
   "scripts": {
@@ -24,11 +24,10 @@
   "homepage": "https://github.com/Edqe14/DiscoTyper#readme",
   "dependencies": {
     "@discordjs/collection": "^0.1.6",
-    "axios": "^0.20.0",
+    "axios": "^0.21.1",
     "canvas": "^2.6.1",
     "chalk": "^4.1.0",
     "cheerio": "^1.0.0-rc.3",
-    "dblapi.js": "^2.4.1",
     "discord.js": "^12.3.1",
     "dotenv": "^8.2.0",
     "monk": "^7.3.2",

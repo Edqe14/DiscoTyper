@@ -41,10 +41,11 @@ module.exports = exports.default = async (message, config, pages = []) => {
     embed.setDescription('Session ended')
       .setFooter('Please re-run the command to view again')
       .setTimestamp();
-    return msg.edit(embed).then(mm => mm.delete({ timeout: config.var.defDeleteTime }));
+    return msg.edit(embed);
   });
 
   async function update (m) {
+    if (!pages[page]) return;
     const { title, description, image } = pages[page];
     if (title) embed.setTitle(title);
     if (description) embed.setDescription(description);
