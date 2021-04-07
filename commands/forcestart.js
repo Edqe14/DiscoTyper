@@ -14,7 +14,7 @@ module.exports = exports = {
 
     const game = bot.games.get(code);
     if (!game) return message.reply('Invalid game');
-    if (game.owner !== message.author.id || !message.member.hasPermission(['MANAGE_GUILD', 'MANAGE_CHANNELS'])) return message.reply('This command only for the game author and server administrator!');
+    if (game.owner !== message.author.id && !message.member.hasPermission(['MANAGE_GUILD', 'MANAGE_CHANNELS'])) return message.reply('This command only for the game author and server administrator!');
     game.start(true);
   }
 };
