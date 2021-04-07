@@ -233,7 +233,7 @@ module.exports = class Game extends EventEmitter {
     this.isFinished = true;
 
     this.finished.forEach(async (f) => {
-      await sleep(Math.random() * 1200);
+      await sleep(Math.random() * 1000);
       const u = await userProfile.findOne({ id: f.id });
       if (u) {
         const xp = Math.random() * 80 + 20;
@@ -255,7 +255,7 @@ module.exports = class Game extends EventEmitter {
           'xp.next': next
         };
 
-        userProfile.findOneAndUpdate({ id: f.id }, {
+        await userProfile.findOneAndUpdate({ id: f.id }, {
           $set
         });
       }
@@ -263,24 +263,29 @@ module.exports = class Game extends EventEmitter {
 
     this.top3 = this.finished.slice(0, 3);
     let prep = '';
-    this.top3.forEach(async (t, i) => {
-      await sleep(Math.random() * 1200);
-      const u = await userProfile.findOne({ id: t.id });
-      if (u) {
-        userProfile.findOneAndUpdate({ id: t.id }, {
-          $set: {
-            'stats.WLR': ((u.stats.winCount + 1) - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
-          },
-          $inc: {
-            'stats.winCount': 1
-          }
-        });
+    for (let i = 0; i < this.top3.length; i++) {
+      const t = this.top3[i];
+
+      const solo = this.players.length <= 1;
+      if (!solo) {
+        const u = await userProfile.findOne({ id: t.id });
+        if (u) {
+          await userProfile.findOneAndUpdate({ id: t.id }, {
+            $set: {
+              'stats.WLR': ((u.stats.winCount + 1) - (Math.abs(u.stats.playCount - u.stats.winCount))) / u.stats.playCount
+            },
+            $inc: {
+              'stats.winCount': 1
+            }
+          });
+        }
       }
-      await sleep(Math.random() * 120);
+
+      let header = `> %emoji **${t.username}** with ${t.wpm.toFixed(2)} WPM\n`;
       switch (i) {
         case 0: {
-          prep += `> 🥇 **${t.username}** with ${t.wpm.toFixed(2)} WPM\n`;
-
+          header = header.replace(/%emoji/gi, '🥇');
+          if (solo) break;
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
               'stats.winSpots.first': 1
@@ -290,8 +295,8 @@ module.exports = class Game extends EventEmitter {
         }
 
         case 1: {
-          prep += `> 🥈 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
-
+          header = header.replace(/%emoji/gi, '🥈');
+          if (solo) break;
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
               'stats.winSpots.second': 1
@@ -301,8 +306,8 @@ module.exports = class Game extends EventEmitter {
         }
 
         case 2: {
-          prep += `> 🥉 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
-
+          header = header.replace(/%emoji/gi, '🥉');
+          if (solo) break;
           userProfile.findOneAndUpdate({ id: t.id }, {
             $inc: {
               'stats.winSpots.third': 1
@@ -312,13 +317,12 @@ module.exports = class Game extends EventEmitter {
         }
 
         default: {
-          prep += `> 🏅 ${t.username} with ${t.wpm.toFixed(2)} WPM\n`;
+          header = header.replace(/%emoji/gi, '🏅');
           break;
         }
       }
-    });
-
-    await sleep(1500);
+      prep += header;
+    }
 
     const noFin = this.players.filter(u => !this.finished.some(f => f.id === u.id));
     noFin.forEach(u => {
