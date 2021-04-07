@@ -16,15 +16,12 @@ const {
     colSet,
     defCPS,
     defMinCPS,
-    defMaxWPM,
     defIdle,
-    defMinFinishTime,
     defMinPlayer,
     defStartTime,
     defDeleteTime,
     defPlayerLimit,
     defStartTimeReminder,
-    defEstimateAverage,
     defMinAfterStart,
     LEVEL_UP_EMOJIS
   }
@@ -175,7 +172,6 @@ module.exports = class Game extends EventEmitter {
       const finish = m.createdTimestamp;
       const duration = finish - (this.failPoints.has(m.author.id) ? this.failPoints.get(m.author.id) : this.start_time); // OK when immidietly start
       const wpm = this.text_len / (duration / 1000) * 60 / 4.7; // OK
-      const analytics = this.sanitize(m, wpm, duration, this.text);
       if (duration < defMinAfterStart || m.content.length < this.text.length / 8) {
         m.delete();
         return m.reply('I think you typed that by accident. You can try again 🙂');
@@ -193,8 +189,7 @@ module.exports = class Game extends EventEmitter {
         acc,
         wpm,
         duration,
-        timestamp: finish,
-        antiCheatData: analytics
+        timestamp: finish
       };
 
       this.finished.push(prep);
@@ -340,7 +335,18 @@ module.exports = class Game extends EventEmitter {
     this.emit('game:end', this.code);
     Game.clean(this);
     Game.log(this.code, this.channel, `**Congratulations to all players!**\n\nHere is **Top 3** players in this game:\n${prep}`, true, 2, null, null, 'This game is ended, please make or join another game to play again!');
-    gameHistory.insert(new GameHistory(this, defMaxWPM, defMinFinishTime, defEstimateAverage));
+
+    const timestamps = this.finished.map((p) => p.timestamp).sort();
+    const durations = this.finished.map((p) => p.duration).sort();
+    gameHistory.insert(new GameHistory(
+      this,
+      this.finished.map((p) => p.wpm).sort((a, b) => b - a)[0],
+      timestamps[0],
+      timestamps[timestamps.length - 1],
+      durations[0],
+      durations[durations.length - 1],
+      this.finished.map((p) => p.acc).sort()[0]
+    ));
   }
 
   /**
