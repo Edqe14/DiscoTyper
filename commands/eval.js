@@ -17,7 +17,7 @@ module.exports = exports = {
       .setTimestamp();
     try {
       const code = args.join(' ');
-      if (code.includes('bot.token' || 'client.token')) throw new Error('Code includes token property. Exiting...');
+      if (code.includes('bot.token') || code.includes('client.token')) return message.reply('Token property detected! Exiting...');
       if (code.length <= 0) return message.reply('Invalid input!');
       let evaled = sEval(code, {
         bot,
