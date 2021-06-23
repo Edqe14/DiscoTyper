@@ -2,12 +2,11 @@ const axios = require('axios');
 
 module.exports = (bot, config) => {
   bot.on('ready', () => {
-    if (process.env.NODE_ENV !== 'prod') return console.log('Bot DEV Ready');
-    console.log(`Bot ready! Playing with ${bot.guilds.cache.reduce((a, g) => a + g.members.cache.filter(m => !m.user.bot).size, 0)} users on ${bot.guilds.cache.size} servers`);
-
+    console.log(`Bot ready! Playing with ${bot.guilds.cache.reduce((a, g) => a + g.memberCount, 0)} users on ${bot.guilds.cache.size} servers`);
+    
     update();
     async function update (lu, lg) {
-      const users = bot.guilds.cache.reduce((a, g) => a + g.members.cache.filter(m => !m.user.bot).size, 0);
+      const users = bot.guilds.cache.reduce((a, g) => a + g.memberCount, 0);
       const guilds = bot.guilds.cache.size;
       if (users === lu && guilds === lg) return;
       const name = `with ${users} users on ${guilds} servers`;
@@ -17,7 +16,8 @@ module.exports = (bot, config) => {
           name
         }
       });
-
+      
+      if (process.env.NODE_ENV !== 'production') return;
       axios({
         method: 'POST',
         url: config.uris.discordbotlist,
